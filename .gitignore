@@ -1,0 +1,26 @@
+# Local toolchains, caches, and build outputs
+.tools/
+.cache/
+build/
+dist/
+*.fpk
+*.tgz
+*.tmp
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+
+# Test and diagnostic outputs
+*.coverprofile
+coverage.out
+*.log
+*.test
+*.exe
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,245 @@
+#!/bin/bash
+
+set -u
+
+APP_NAME="${TRIM_APPNAME:-TailscaleFnos}"
+APP_ROOT="/var/apps/${APP_NAME}"
+APP_DEST="${TRIM_APPDEST:-${APP_ROOT}/target}"
+PKG_VAR="${TRIM_PKGVAR:-${APP_ROOT}/var}"
+PKG_TMP="${TRIM_PKGTMP:-${APP_ROOT}/tmp}"
+BIN_DIR="${APP_DEST}/bin"
+TAILSCALED_BIN="${BIN_DIR}/tailscaled"
+TAILSCALE_BIN="${BIN_DIR}/tailscale"
+STATE_DIR="${PKG_VAR}/state"
+LOG_DIR="${PKG_VAR}/log"
+LOG_FILE="${LOG_DIR}/tailscaled.log"
+PID_FILE="${PKG_TMP}/tailscaled.pid"
+SOCKET_PATH="${PKG_TMP}/tailscaled.sock"
+
+umask 077
+
+write_user_error() {
+  local message="$1"
+  if [ -n "${TRIM_TEMP_LOGFILE:-}" ]; then
+    printf '%s\n' "$message" > "$TRIM_TEMP_LOGFILE"
+  fi
+  printf '%s\n' "$message" >&2
+}
+
+log_message() {
+  mkdir -p "$LOG_DIR" 2>/dev/null || true
+  printf '%s - %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOG_FILE"
+}
+
+prepare_directories() {
+  mkdir -p "$STATE_DIR" "$LOG_DIR" "$PKG_TMP" || return 1
+  chmod 0700 "$STATE_DIR" "$LOG_DIR" "$PKG_TMP" 2>/dev/null || true
+}
+
+read_pid() {
+  [ -f "$PID_FILE" ] || return 1
+  local pid
+  pid="$(head -n 1 "$PID_FILE" 2>/dev/null | tr -cd '0-9')"
+  [ -n "$pid" ] || return 1
+  printf '%s' "$pid"
+}
+
+is_our_process() {
+  local pid="$1"
+  kill -0 "$pid" 2>/dev/null || return 1
+
+  if [ -e "/proc/${pid}/exe" ]; then
+    local process_exe
+    process_exe="$(readlink -f "/proc/${pid}/exe" 2>/dev/null || true)"
+    [ "$process_exe" = "$(readlink -f "$TAILSCALED_BIN" 2>/dev/null || true)" ] || return 1
+  fi
+
+  return 0
+}
+
+status_app() {
+  local pid
+  pid="$(read_pid)" || {
+    rm -f "$PID_FILE"
+    return 1
+  }
+
+  if is_our_process "$pid"; then
+    return 0
+  fi
+
+  rm -f "$PID_FILE"
+  return 1
+}
+
+any_tailscaled_running() {
+  if command -v pgrep >/dev/null 2>&1; then
+    pgrep -x tailscaled >/dev/null 2>&1
+    return $?
+  fi
+
+  if command -v pidof >/dev/null 2>&1; then
+    pidof tailscaled >/dev/null 2>&1
+    return $?
+  fi
+
+  # Fail closed when the platform has no safe process-discovery command.
+  return 0
+}
+
+check_conflicts() {
+  if [ -e /sys/class/net/tailscale0 ]; then
+    write_user_error "A tailscale0 interface already exists. Stop any other Tailscale installation before starting this package."
+    return 1
+  fi
+
+  if command -v pgrep >/dev/null 2>&1 && pgrep -x tailscaled >/dev/null 2>&1; then
+    write_user_error "Another tailscaled process is already running. Stop it before starting this package."
+    return 1
+  fi
+
+  return 0
+}
+
+restore_exit_node_forwarding() {
+  local advertised
+  advertised="$("$TAILSCALE_BIN" --socket="$SOCKET_PATH" get advertise-exit-node 2>> "$LOG_FILE" || true)"
+  [ "$advertised" = "true" ] || return 0
+
+  if [ -w /proc/sys/net/ipv4/ip_forward ]; then
+    printf '1\n' > /proc/sys/net/ipv4/ip_forward
+  fi
+  if [ -w /proc/sys/net/ipv6/conf/all/forwarding ]; then
+    printf '1\n' > /proc/sys/net/ipv6/conf/all/forwarding
+  fi
+  log_message "Restored runtime IP forwarding for the configured Exit Node."
+}
+
+start_app() {
+  if status_app; then
+    return 0
+  fi
+
+  if [ "$(id -u)" -ne 0 ]; then
+    write_user_error "Tailscale kernel networking must be started as root."
+    return 1
+  fi
+
+  if [ ! -c /dev/net/tun ]; then
+    write_user_error "/dev/net/tun is unavailable. Enable TUN support in fnOS or in the virtual machine configuration."
+    return 1
+  fi
+
+  if [ ! -x "$TAILSCALED_BIN" ] || [ ! -x "$TAILSCALE_BIN" ]; then
+    write_user_error "Tailscale binaries are missing or not executable. Reinstall the application."
+    return 1
+  fi
+
+  prepare_directories || {
+    write_user_error "Unable to create the Tailscale state directory."
+    return 1
+  }
+
+  check_conflicts || return 1
+  rm -f "$SOCKET_PATH" "$PID_FILE"
+
+  log_message "Starting tailscaled from ${TAILSCALED_BIN}."
+  nohup "$TAILSCALED_BIN" \
+    --statedir="$STATE_DIR" \
+    --socket="$SOCKET_PATH" \
+    --tun=tailscale0 \
+    --port=0 >> "$LOG_FILE" 2>&1 &
+
+  local pid=$!
+  printf '%s\n' "$pid" > "$PID_FILE"
+  chmod 0600 "$PID_FILE" 2>/dev/null || true
+
+  local attempt=0
+  while [ "$attempt" -lt 15 ]; do
+    if ! is_our_process "$pid"; then
+      rm -f "$PID_FILE" "$SOCKET_PATH"
+      write_user_error "tailscaled exited during startup. Check ${LOG_FILE}."
+      return 1
+    fi
+    if [ -S "$SOCKET_PATH" ]; then
+      chmod 0600 "$SOCKET_PATH" 2>/dev/null || true
+      restore_exit_node_forwarding
+      return 0
+    fi
+    sleep 1
+    attempt=$((attempt + 1))
+  done
+
+  kill -TERM "$pid" 2>/dev/null || true
+  rm -f "$PID_FILE" "$SOCKET_PATH"
+  write_user_error "tailscaled did not create its LocalAPI socket within 15 seconds. Check ${LOG_FILE}."
+  return 1
+}
+
+cleanup_network_state() {
+  "$TAILSCALED_BIN" \
+    --cleanup \
+    --statedir="$STATE_DIR" \
+    --socket="$SOCKET_PATH" \
+    --tun=tailscale0 >> "$LOG_FILE" 2>&1 || true
+}
+
+stop_app() {
+  local pid
+  pid="$(read_pid)" || {
+    rm -f "$PID_FILE" "$SOCKET_PATH"
+    if [ -x "$TAILSCALED_BIN" ] && ! any_tailscaled_running; then
+      cleanup_network_state
+    else
+      log_message "Skipped orphan network cleanup because another tailscaled process may be running."
+    fi
+    return 0
+  }
+
+  if ! is_our_process "$pid"; then
+    rm -f "$PID_FILE" "$SOCKET_PATH"
+    if ! any_tailscaled_running; then
+      cleanup_network_state
+    else
+      log_message "Skipped stale-PID cleanup because another tailscaled process may be running."
+    fi
+    return 0
+  fi
+
+  log_message "Stopping tailscaled process ${pid}."
+  kill -TERM "$pid" 2>/dev/null || true
+
+  local attempt=0
+  while is_our_process "$pid" && [ "$attempt" -lt 15 ]; do
+    sleep 1
+    attempt=$((attempt + 1))
+  done
+
+  if is_our_process "$pid"; then
+    log_message "tailscaled did not stop after 15 seconds; sending KILL."
+    kill -KILL "$pid" 2>/dev/null || true
+  fi
+
+  rm -f "$PID_FILE" "$SOCKET_PATH"
+  cleanup_network_state
+  return 0
+}
+
+case "${1:-}" in
+  start)
+    start_app
+    ;;
+  stop)
+    stop_app
+    ;;
+  status)
+    if status_app; then
+      exit 0
+    fi
+    exit 3
+    ;;
+  *)
+    write_user_error "Usage: $0 {start|stop|status}"
+    exit 1
+    ;;
+esac

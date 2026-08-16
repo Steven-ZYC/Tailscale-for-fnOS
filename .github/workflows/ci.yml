@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Go
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Prepare executable scripts
+        run: chmod +x scripts/*.sh packaging/cmd/* packaging/app/ui/index.cgi
+
+      - name: Install shellcheck when missing
+        run: |
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y shellcheck
+          fi
+
+      - name: Validate source package
+        run: ./scripts/validate.sh
+
+      - name: Install pinned fnpack
+        run: ./scripts/install-fnpack.sh
+
+      - name: Build x86 and arm FPK files
+        run: ./scripts/build-all.sh
+
+      - name: Verify generated checksums
+        run: cd dist && sha256sum -c SHA256SUMS
+
+      - name: Show build outputs
+        run: ls -lh dist

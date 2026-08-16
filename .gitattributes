@@ -1,0 +1,7 @@
+* text=auto
+*.sh text eol=lf
+manifest.template text eol=lf
+config text eol=lf
+index.cgi text eol=lf
+*.png binary
+*.fpk binary

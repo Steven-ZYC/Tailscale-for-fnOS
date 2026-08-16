@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# fnOS normally stops a running application before replacing its files. Keep
+# this hook intentionally non-destructive so TRIM_PKGVAR/state always survives.
+exit 0

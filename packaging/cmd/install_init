@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -u
+
+if [ "$(id -u)" -ne 0 ]; then
+  printf '%s\n' "This package requires root lifecycle scripts for TUN networking." > "${TRIM_TEMP_LOGFILE:-/dev/stderr}"
+  exit 1
+fi
+
+exit 0

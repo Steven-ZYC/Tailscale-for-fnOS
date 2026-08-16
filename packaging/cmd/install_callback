@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -u
+umask 077
+
+mkdir -p "${TRIM_PKGVAR}/state" "${TRIM_PKGVAR}/log" "${TRIM_PKGTMP}"
+chmod 0700 "${TRIM_PKGVAR}/state" "${TRIM_PKGVAR}/log" "${TRIM_PKGTMP}" 2>/dev/null || true
+
+if [ ! -x "${TRIM_APPDEST}/bin/tailscale" ] || [ ! -x "${TRIM_APPDEST}/bin/tailscaled" ]; then
+  printf '%s\n' "The packaged Tailscale binaries are missing or not executable." > "${TRIM_TEMP_LOGFILE:-/dev/stderr}"
+  exit 1
+fi
+
+"${TRIM_APPDEST}/bin/tailscaled" --version > "${TRIM_PKGVAR}/installed-version.txt" 2>&1 || {
+  printf '%s\n' "The packaged tailscaled binary cannot run on this CPU architecture." > "${TRIM_TEMP_LOGFILE:-/dev/stderr}"
+  exit 1
+}
+
+exit 0

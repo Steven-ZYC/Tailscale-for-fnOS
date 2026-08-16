@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Do not delete TRIM_PKGVAR here. fnOS owns the application-data retention
+# policy, and silently deleting a Tailscale node identity would be surprising.
+exit 0

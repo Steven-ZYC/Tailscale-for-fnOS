@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -u
+
+MAIN_SCRIPT="/var/apps/${TRIM_APPNAME:-TailscaleFnos}/cmd/main"
+if [ -x "$MAIN_SCRIPT" ]; then
+  "$MAIN_SCRIPT" stop || true
+fi
+
+exit 0

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -u
+umask 077
+
+mkdir -p "${TRIM_PKGVAR}/state" "${TRIM_PKGVAR}/log" "${TRIM_PKGTMP}"
+chmod 0700 "${TRIM_PKGVAR}/state" "${TRIM_PKGVAR}/log" "${TRIM_PKGTMP}" 2>/dev/null || true
+rm -f "${TRIM_PKGTMP}/tailscaled.pid" "${TRIM_PKGTMP}/tailscaled.sock"
+
+exit 0

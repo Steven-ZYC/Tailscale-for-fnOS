@@ -1,0 +1,14 @@
+{
+  ".url": {
+    "TailscaleFnos.main": {
+      "title": "Tailscale",
+      "icon": "images/icon_{0}.png",
+      "type": "iframe",
+      "url": "/cgi/ThirdParty/TailscaleFnos/index.cgi/",
+      "allUsers": false,
+      "control": {
+        "accessPerm": "readonly"
+      }
+    }
+  }
+}

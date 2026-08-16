@@ -1,0 +1,19 @@
+appname=TailscaleFnos
+version=@PACKAGE_VERSION@
+display_name=Tailscale
+desc=Tailscale 是一款基于 WireGuard 的零配置组网工具。本应用将 Tailscale 官方 Linux 二进制原生封装为 fnOS FPK，由社区维护，与 Tailscale Inc. 及飞牛 fnOS 官方无隶属或背书关系。项目地址：https://github.com/Steven-ZYC/Tailscale-for-fnOS
+source=thirdparty
+platform=@FNOS_PLATFORM@
+
+maintainer=Steven Zhang Yancheng
+maintainer_url=https://github.com/Steven-ZYC/Tailscale-for-fnOS
+distributor=Steven Zhang Yancheng
+distributor_url=https://github.com/Steven-ZYC/Tailscale-for-fnOS
+
+desktop_uidir=ui
+desktop_applaunchname=TailscaleFnos.main
+
+ctl_stop=true
+checkport=false
+disable_authorization_path=true
+changelog=内置 Tailscale @TAILSCALE_VERSION@ 稳定版；提供原创中文管理界面、双模式登录、设备状态、DERP 延迟、Exit Node 与版本检测；fnOS 打包修订号 @PACKAGE_REVISION@。

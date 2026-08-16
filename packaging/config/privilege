@@ -1,0 +1,7 @@
+{
+  "defaults": {
+    "run-as": "root"
+  },
+  "username": "tailscale_fnos",
+  "groupname": "tailscale_fnos"
+}

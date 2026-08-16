@@ -1,0 +1,94 @@
+name: Build draft release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - upstream.lock
+      - packaging/**
+      - cmd/**
+      - internal/**
+      - go.mod
+      - scripts/**
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: fnos-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Go
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Prepare executable scripts
+        run: chmod +x scripts/*.sh packaging/cmd/* packaging/app/ui/index.cgi
+
+      - name: Read release identity
+        id: release
+        shell: bash
+        run: |
+          source upstream.lock
+          package_version="${TAILSCALE_VERSION}-fnos.${FNOS_PACKAGE_REVISION}"
+          echo "package_version=${package_version}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${package_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip an existing release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate and build
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          ./scripts/validate.sh
+          ./scripts/install-fnpack.sh
+          ./scripts/build-all.sh
+          ./scripts/create-release-notes.sh
+
+      - name: Attest FPK build provenance
+        if: steps.existing.outputs.exists != 'true'
+        continue-on-error: true
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-path: dist/*.fpk
+
+      - name: Create draft GitHub release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          PACKAGE_VERSION: ${{ steps.release.outputs.package_version }}
+        shell: bash
+        run: |
+          gh release create "$TAG" \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "Tailscale for fnOS ${PACKAGE_VERSION}" \
+            --notes-file dist/RELEASE_NOTES.md \
+            dist/*.fpk \
+            dist/SHA256SUMS \
+            dist/provenance.json
