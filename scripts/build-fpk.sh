@@ -6,7 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=common.sh
 source "${SCRIPT_DIR}/common.sh"
 
-[ "$#" -ge 1 ] && [ "$#" -le 2 ] || die "usage: $0 <x86|arm> [output-directory]"
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  die "usage: $0 <x86|arm> [output-directory]"
+fi
 
 requested_arch="$1"
 output_dir="${2:-${PROJECT_ROOT}/dist}"

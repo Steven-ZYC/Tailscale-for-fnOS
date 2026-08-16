@@ -11,7 +11,7 @@ load_lock
 
 version="${1:-}"
 if [ -z "$version" ]; then
-  version="$(${SCRIPT_DIR}/detect-upstream.sh --version-only)"
+  version="$("${SCRIPT_DIR}/detect-upstream.sh" --version-only)"
 fi
 validate_version "$version"
 

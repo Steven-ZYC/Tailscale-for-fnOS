@@ -102,7 +102,7 @@ grep -q '^source=thirdparty$' "${PROJECT_ROOT}/packaging/manifest.template" || \
 if command -v shellcheck >/dev/null 2>&1; then
   mapfile -d '' shell_files < <(find "${PROJECT_ROOT}/scripts" "${PROJECT_ROOT}/packaging/cmd" \
     -type f \( -name '*.sh' -o -path '*/cmd/*' \) -print0)
-  shellcheck -x "${shell_files[@]}" \
+  shellcheck -x -P "${PROJECT_ROOT}/scripts" "${shell_files[@]}" \
     "${PROJECT_ROOT}/packaging/app/ui/index.cgi"
 else
   printf '%s\n' 'warning: shellcheck is not installed; syntax checks still passed' >&2

@@ -47,12 +47,12 @@ validate_sha256() {
 map_architecture() {
   case "$1" in
     x86)
-      FNOS_PLATFORM=x86
-      UPSTREAM_ARCH=amd64
+      export FNOS_PLATFORM=x86
+      export UPSTREAM_ARCH=amd64
       ;;
     arm)
-      FNOS_PLATFORM=arm
-      UPSTREAM_ARCH=arm64
+      export FNOS_PLATFORM=arm
+      export UPSTREAM_ARCH=arm64
       ;;
     *)
       die "unsupported architecture '$1'; expected x86 or arm"
