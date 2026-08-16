@@ -4,18 +4,29 @@ const elements = Object.fromEntries([
   "packageVersion", "refreshButton", "statusDot", "backendState", "connectionDescription",
   "identityRow", "selfName", "tailnetName", "powerButton", "powerLabel", "onlineCount",
   "totalCount", "latencyValue", "latencyUnit", "latencyButton", "tailscaleIP", "versionValue",
-  "updateState", "deviceRows", "deviceSearch", "hostnameForm", "hostnameInput", "exitNodeToggle",
-  "exitNodeNote", "updateButton", "updateDescription", "releaseLink", "loginDialog", "browserTab",
-  "keyTab", "browserPane", "keyPane", "browserLoginButton", "authLink", "authKeyInput",
-  "keyLoginButton", "toastRegion"
+  "updateState", "overviewDeviceCards", "viewAllDevices", "deviceCards", "deviceSearch",
+  "devicePagination", "devicePrev", "deviceNext", "devicePageLabel", "devicePageOnline",
+  "hostnameForm", "hostnameInput", "exitNodeToggle", "exitNodeNote", "fontScaleInput",
+  "fontScaleValue", "uiZoomInput", "uiZoomValue", "appearanceResetButton", "accountDeviceName",
+  "accountTailnet", "accountIP", "logoutButton", "updateButton", "updateDescription",
+  "releaseLink", "loginDialog", "browserTab", "keyTab", "browserPane", "keyPane",
+  "browserLoginButton", "authLink", "authKeyInput", "keyLoginButton", "toastRegion"
 ].map((id) => [id, document.getElementById(id)]));
+
+const APPEARANCE_KEY = "tailscale-fnos-appearance-v1";
+const validPages = new Set(["overview", "devices", "settings"]);
 
 const appState = {
   status: null,
   devices: [],
   refreshing: false,
   latencyMeasured: false,
-  statusTimer: null
+  statusTimer: null,
+  currentPage: "overview",
+  deviceFilter: "all",
+  devicePage: 1,
+  devicePageSize: 8,
+  appearance: { fontScale: 100, uiZoom: 100 }
 };
 
 async function request(path, options = {}) {
@@ -42,6 +53,11 @@ async function request(path, options = {}) {
 
 function post(path, value = {}) {
   return request(path, { method: "POST", body: JSON.stringify(value) });
+}
+
+function clamp(value, minimum, maximum, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(maximum, Math.max(minimum, number)) : fallback;
 }
 
 function setBusy(button, busy, label) {
@@ -76,6 +92,116 @@ function backendLabel(state) {
   })[state] || state || "服务不可用";
 }
 
+function navigate(page, updateHash = true) {
+  const target = validPages.has(page) ? page : "overview";
+  appState.currentPage = target;
+  document.querySelectorAll("[data-page-panel]").forEach((panel) => {
+    const active = panel.dataset.pagePanel === target;
+    panel.hidden = !active;
+    panel.classList.toggle("active", active);
+  });
+  document.querySelectorAll("[data-page]").forEach((button) => {
+    const active = button.dataset.page === target;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  if (updateHash && window.location.hash !== `#${target}`) {
+    window.history.replaceState(null, "", `#${target}`);
+  }
+  if (target === "devices") renderDevices();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function osDescriptor(device) {
+  if (device.self) return { kind: "fnos", label: "fnOS" };
+  const os = String(device.os || "").toLowerCase();
+  if (os.includes("windows")) return { kind: "windows", label: "Windows" };
+  if (os.includes("mac") || os.includes("darwin")) return { kind: "macos", label: "macOS" };
+  if (os.includes("ios") || os.includes("iphone") || os.includes("ipad")) return { kind: "ios", label: "iOS / iPadOS" };
+  if (os.includes("android")) return { kind: "android", label: "Android" };
+  if (os.includes("freebsd") || os.includes("openbsd") || os.includes("netbsd")) return { kind: "bsd", label: "BSD" };
+  if (os.includes("linux")) return { kind: "linux", label: "Linux" };
+  return { kind: "other", label: device.os || "未知系统" };
+}
+
+function osIcon(kind) {
+  const icons = {
+    fnos: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="6" width="20" height="8" rx="2"/><rect x="6" y="18" width="20" height="8" rx="2"/><path d="M10 10h.01M10 22h.01M14 10h8M14 22h8"/></svg>',
+    windows: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 7.5 14 6v9H5V7.5Zm12-2 10-1.5v11H17V5.5ZM5 18h9v9l-9-1.5V18Zm12 0h10v11l-10-1.5V18Z"/></svg>',
+    macos: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="6" width="22" height="16" rx="3"/><path d="M12 27h8m-4-5v5M9 10h14"/></svg>',
+    ios: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="9" y="4" width="14" height="24" rx="3"/><path d="M14 7h4M15 24h2"/></svg>',
+    android: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="m11 8-2-3m12 3 2-3M8 14h16v10a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3V14Zm2 0a6 6 0 0 1 12 0M12 11h.01M20 11h.01M5 15v8m22-8v8"/></svg>',
+    linux: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="6" width="24" height="20" rx="3"/><path d="m9 12 4 4-4 4m7 0h7"/></svg>',
+    bsd: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4 26 8v7c0 6-4.2 10.5-10 13-5.8-2.5-10-7-10-13V8l10-4Z"/><path d="m11 15 3 3 7-7"/></svg>',
+    other: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="8" r="4"/><circle cx="8" cy="23" r="4"/><circle cx="24" cy="23" r="4"/><path d="m14 11-4 8m8-8 4 8m-10 4h8"/></svg>'
+  };
+  return icons[kind] || icons.other;
+}
+
+function connectionDescriptor(device) {
+  const kind = ["direct", "relay", "offline", "idle"].includes(device.connection)
+    ? device.connection
+    : "idle";
+  const label = kind === "direct"
+    ? "直连"
+    : kind === "relay"
+      ? `DERP ${device.relay || ""}`.trim()
+      : kind === "offline" ? "离线" : "空闲";
+  return { kind, label };
+}
+
+function deviceCard(device, compact = false) {
+  const system = osDescriptor(device);
+  const connection = connectionDescriptor(device);
+  const address = device.ips?.[0] || "—";
+  return `<article class="device-card ${compact ? "compact-card" : ""}">
+    <div class="os-icon ${system.kind}">${osIcon(system.kind)}</div>
+    <div class="device-card-copy">
+      <div class="device-card-heading">
+        <strong>${escapeHTML(device.name || "未命名设备")}</strong>
+        ${device.self ? '<span class="self-tag">本机</span>' : ""}
+      </div>
+      <p>${escapeHTML(system.label)}${device.exit_node_option ? " · Exit Node" : ""}</p>
+      <div class="device-card-details">
+        <span class="mono">${escapeHTML(address)}</span>
+        <span class="connection-badge ${connection.kind}">${escapeHTML(connection.label)}</span>
+      </div>
+    </div>
+    <span class="device-online-indicator ${device.online ? "online" : ""}" title="${device.online ? "在线" : "离线"}"><span></span>${device.online ? "在线" : "离线"}</span>
+  </article>`;
+}
+
+function filteredDevices() {
+  const query = elements.deviceSearch.value.trim().toLowerCase();
+  return appState.devices.filter((device) => {
+    const haystack = [device.name, device.dns_name, device.os, ...(device.ips || [])].join(" ").toLowerCase();
+    const matchesQuery = !query || haystack.includes(query);
+    const matchesFilter = appState.deviceFilter !== "online" || device.online;
+    return matchesQuery && matchesFilter;
+  });
+}
+
+function renderDevices() {
+  const preview = appState.devices.slice(0, 4);
+  elements.overviewDeviceCards.innerHTML = preview.length
+    ? preview.map((device) => deviceCard(device, true)).join("")
+    : '<div class="empty-state">暂无可显示的设备</div>';
+
+  const devices = filteredDevices();
+  const totalPages = Math.max(1, Math.ceil(devices.length / appState.devicePageSize));
+  appState.devicePage = Math.min(Math.max(1, appState.devicePage), totalPages);
+  const start = (appState.devicePage - 1) * appState.devicePageSize;
+  const pageDevices = devices.slice(start, start + appState.devicePageSize);
+  elements.deviceCards.innerHTML = pageDevices.length
+    ? pageDevices.map((device) => deviceCard(device)).join("")
+    : `<div class="empty-state">${elements.deviceSearch.value.trim() || appState.deviceFilter === "online" ? "没有匹配的设备" : "暂无可显示的设备"}</div>`;
+  elements.devicePageLabel.textContent = `第 ${appState.devicePage} / ${totalPages} 页 · 共 ${devices.length} 台`;
+  elements.devicePrev.disabled = appState.devicePage <= 1;
+  elements.deviceNext.disabled = appState.devicePage >= totalPages;
+  elements.devicePagination.classList.toggle("single-page", totalPages <= 1);
+}
+
 function renderStatus(status) {
   appState.status = status;
   appState.devices = status.devices || [];
@@ -95,18 +221,26 @@ function renderStatus(status) {
         : "使用浏览器或 Auth Key 登录后即可接入你的 Tailnet。";
 
   const self = status.self;
+  const primaryIP = status.tailscale_ips?.[0] || self?.ips?.[0] || "—";
   elements.identityRow.hidden = !self;
   elements.selfName.textContent = self?.name || "—";
   elements.tailnetName.textContent = status.tailnet || "Tailnet";
   elements.onlineCount.textContent = status.online_count ?? 0;
   elements.totalCount.textContent = ` / ${status.total_count ?? 0}`;
-  elements.tailscaleIP.textContent = status.tailscale_ips?.[0] || self?.ips?.[0] || "—";
-  elements.hostnameInput.value = self?.name || "";
+  elements.devicePageOnline.textContent = status.online_count ?? 0;
+  elements.tailscaleIP.textContent = primaryIP;
+  if (document.activeElement !== elements.hostnameInput) elements.hostnameInput.value = self?.name || "";
+  elements.hostnameInput.disabled = !status.logged_in;
+  elements.hostnameForm.querySelector("button").disabled = !status.logged_in;
   elements.exitNodeToggle.checked = Boolean(status.exit_node_advertised);
   elements.exitNodeToggle.disabled = !status.logged_in;
   elements.exitNodeNote.textContent = status.exit_node_advertised
     ? "正在广播 Exit Node。首次启用后仍需在 Tailscale 管理后台批准。"
     : "启用后会打开运行时 IP 转发，并需要在 Tailscale 管理后台批准此设备。";
+  elements.accountDeviceName.textContent = self?.name || "尚未登录";
+  elements.accountTailnet.textContent = status.tailnet || "—";
+  elements.accountIP.textContent = primaryIP;
+  elements.logoutButton.disabled = !status.logged_in;
   renderDevices();
 
   if (status.connected && !appState.latencyMeasured) {
@@ -126,38 +260,16 @@ function renderUnavailable(message) {
   elements.powerLabel.textContent = "不可用";
   elements.onlineCount.textContent = "—";
   elements.totalCount.textContent = " / —";
+  elements.devicePageOnline.textContent = "—";
   elements.tailscaleIP.textContent = "—";
+  elements.hostnameInput.disabled = true;
+  elements.hostnameForm.querySelector("button").disabled = true;
   elements.exitNodeToggle.disabled = true;
+  elements.logoutButton.disabled = true;
+  elements.accountDeviceName.textContent = "—";
+  elements.accountTailnet.textContent = "—";
+  elements.accountIP.textContent = "—";
   renderDevices();
-}
-
-function renderDevices() {
-  const query = elements.deviceSearch.value.trim().toLowerCase();
-  const devices = appState.devices.filter((device) => {
-    const haystack = [device.name, device.dns_name, ...(device.ips || [])].join(" ").toLowerCase();
-    return !query || haystack.includes(query);
-  });
-  if (!devices.length) {
-    elements.deviceRows.innerHTML = `<tr><td colspan="4"><div class="empty-state">${query ? "没有匹配的设备" : "暂无可显示的设备"}</div></td></tr>`;
-    return;
-  }
-  elements.deviceRows.innerHTML = devices.map((device) => {
-    const name = escapeHTML(device.name);
-    const initials = escapeHTML((device.name || "?").slice(0, 2));
-    const address = escapeHTML(device.ips?.[0] || "—");
-    const osName = escapeHTML(device.os || "unknown");
-    const connection = device.connection === "direct"
-      ? "直连"
-      : device.connection === "relay"
-        ? `DERP ${escapeHTML(device.relay || "")}`
-        : device.connection === "offline" ? "离线" : "空闲";
-    return `<tr>
-      <td><div class="device-cell"><div class="device-avatar ${device.self ? "self" : ""}">${initials}</div><div><div class="device-name">${name}${device.self ? '<span class="self-tag">本机</span>' : ""}</div><div class="device-meta">${osName}${device.exit_node_option ? " · Exit Node" : ""}</div></div></div></td>
-      <td class="mono">${address}</td>
-      <td><span class="connection-badge ${escapeHTML(device.connection)}">${connection}</span></td>
-      <td><span class="status-badge ${device.online ? "online" : ""}">${device.online ? "在线" : "离线"}</span></td>
-    </tr>`;
-  }).join("");
 }
 
 async function loadStatus(showError = false) {
@@ -192,6 +304,23 @@ async function toggleConnection() {
   } catch (error) {
     toast(error.message, "error");
   } finally {
+    await loadStatus();
+  }
+}
+
+async function logout() {
+  if (!appState.status?.logged_in) return;
+  const confirmed = window.confirm("确认退出当前 Tailscale 账户？本机将从 Tailnet 注销，需要重新登录才能连接；FPK 应用不会被卸载。");
+  if (!confirmed) return;
+  setBusy(elements.logoutButton, true, "正在退出…");
+  try {
+    await post("logout");
+    toast("已退出 Tailscale 账户", "success");
+    navigate("overview");
+  } catch (error) {
+    toast(error.message, "error");
+  } finally {
+    setBusy(elements.logoutButton, false);
     await loadStatus();
   }
 }
@@ -313,7 +442,7 @@ async function checkUpdate(showError = true) {
   elements.updateState.textContent = "检查中";
   try {
     const result = await request("update");
-    elements.releaseLink.href = result.release_url;
+    if (result.release_url) elements.releaseLink.href = result.release_url;
     if (!result.published) {
       elements.updateState.textContent = "暂无发布";
       elements.updateDescription.textContent = "GitHub 尚无公开 Release，当前为测试构建";
@@ -336,22 +465,68 @@ async function checkUpdate(showError = true) {
   }
 }
 
+function applyAppearance(save = true) {
+  const fontScale = clamp(appState.appearance.fontScale, 90, 120, 100);
+  const uiZoom = clamp(appState.appearance.uiZoom, 80, 120, 100);
+  appState.appearance = { fontScale, uiZoom };
+  document.documentElement.style.setProperty("--font-delta", `${(fontScale - 100) / 5}px`);
+  document.documentElement.style.setProperty("--ui-zoom", String(uiZoom / 100));
+  elements.fontScaleInput.value = String(fontScale);
+  elements.fontScaleValue.textContent = `${fontScale}%`;
+  elements.uiZoomInput.value = String(uiZoom);
+  elements.uiZoomValue.textContent = `${uiZoom}%`;
+  if (save) window.localStorage.setItem(APPEARANCE_KEY, JSON.stringify(appState.appearance));
+}
+
+function loadAppearance() {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(APPEARANCE_KEY) || "null");
+    if (stored) appState.appearance = stored;
+  } catch {
+    window.localStorage.removeItem(APPEARANCE_KEY);
+  }
+  applyAppearance(false);
+}
+
+function resetAppearance() {
+  appState.appearance = { fontScale: 100, uiZoom: 100 };
+  applyAppearance(true);
+  toast("显示设置已恢复默认", "success");
+}
+
+document.querySelectorAll("[data-page]").forEach((button) => button.addEventListener("click", () => navigate(button.dataset.page)));
+document.querySelectorAll("[data-device-filter]").forEach((button) => button.addEventListener("click", () => {
+  appState.deviceFilter = button.dataset.deviceFilter;
+  appState.devicePage = 1;
+  document.querySelectorAll("[data-device-filter]").forEach((item) => item.classList.toggle("active", item === button));
+  renderDevices();
+}));
 elements.refreshButton.addEventListener("click", () => loadStatus(true));
 elements.powerButton.addEventListener("click", toggleConnection);
-elements.deviceSearch.addEventListener("input", renderDevices);
+elements.viewAllDevices.addEventListener("click", () => navigate("devices"));
+elements.deviceSearch.addEventListener("input", () => { appState.devicePage = 1; renderDevices(); });
+elements.devicePrev.addEventListener("click", () => { appState.devicePage -= 1; renderDevices(); });
+elements.deviceNext.addEventListener("click", () => { appState.devicePage += 1; renderDevices(); });
 elements.hostnameForm.addEventListener("submit", saveHostname);
 elements.exitNodeToggle.addEventListener("change", toggleExitNode);
+elements.logoutButton.addEventListener("click", logout);
 elements.latencyButton.addEventListener("click", () => measureLatency(true));
 elements.updateButton.addEventListener("click", () => checkUpdate(true));
 elements.browserTab.addEventListener("click", () => selectLoginTab("browser"));
 elements.keyTab.addEventListener("click", () => selectLoginTab("key"));
 elements.browserLoginButton.addEventListener("click", browserLogin);
 elements.keyLoginButton.addEventListener("click", authKeyLogin);
+elements.fontScaleInput.addEventListener("input", () => { appState.appearance.fontScale = Number(elements.fontScaleInput.value); applyAppearance(true); });
+elements.uiZoomInput.addEventListener("input", () => { appState.appearance.uiZoom = Number(elements.uiZoomInput.value); applyAppearance(true); });
+elements.appearanceResetButton.addEventListener("click", resetAppearance);
 elements.loginDialog.addEventListener("close", () => {
   elements.authKeyInput.value = "";
   elements.authLink.hidden = true;
 });
+window.addEventListener("hashchange", () => navigate(window.location.hash.slice(1), false));
 
+loadAppearance();
+navigate(window.location.hash.slice(1), false);
 loadStatus();
 checkUpdate(false);
 appState.statusTimer = window.setInterval(() => loadStatus(false), 10000);

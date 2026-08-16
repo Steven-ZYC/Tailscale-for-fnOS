@@ -42,8 +42,13 @@ No 32-bit ARM package is currently produced.
 - Restricts the desktop entry to fnOS administrators.
 - Supports both browser-link and Auth Key login. Auth Keys are passed through a
   mode-`0600` temporary file and deleted immediately after use.
-- Provides connect/disconnect, peer inventory and online counts, DERP latency,
-  hostname changes, and local Exit Node advertisement controls.
+- Provides connect/disconnect and account logout.
+- Shows project-original inline SVG icons by operating system, with device
+  search, online filtering, pagination, and online counts.
+- Provides DERP latency checks, hostname changes, and local Exit Node
+  advertisement controls.
+- Splits the interface into Overview, Devices, and Settings pages. Font size and
+  interface zoom preferences are stored only in the current browser.
 - Checks GitHub Releases for newer FPK packages and only displays a notification;
   it never self-updates the NAS installation.
 - Does not run `tailscale update`; updates are delivered only as new FPK files.

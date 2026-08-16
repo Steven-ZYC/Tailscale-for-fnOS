@@ -81,6 +81,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/update", s.handleUpdate)
 	s.mux.HandleFunc("POST /api/connect", s.handleConnect)
 	s.mux.HandleFunc("POST /api/down", s.handleDown)
+	s.mux.HandleFunc("POST /api/logout", s.handleLogout)
 	s.mux.HandleFunc("POST /api/login/browser", s.handleBrowserLogin)
 	s.mux.HandleFunc("POST /api/login/auth-key", s.handleAuthKeyLogin)
 	s.mux.HandleFunc("POST /api/hostname", s.handleHostname)
@@ -345,6 +346,20 @@ func (s *Server) handleDown(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	writeData(writer, http.StatusOK, map[string]bool{"connected": false})
+}
+
+func (s *Server) handleLogout(writer http.ResponseWriter, request *http.Request) {
+	if !requireJSON(writer, request) {
+		return
+	}
+	ctx, cancel := context.WithTimeout(request.Context(), 8*time.Second)
+	defer cancel()
+	result, err := s.runner.Run(ctx, "logout")
+	if err != nil {
+		writeError(writer, http.StatusBadGateway, "logout_failed", commandMessage(result, err))
+		return
+	}
+	writeData(writer, http.StatusOK, map[string]bool{"logged_in": false})
 }
 
 func (s *Server) handleHostname(writer http.ResponseWriter, request *http.Request) {

@@ -16,4 +16,4 @@ desktop_applaunchname=TailscaleFnos.main
 ctl_stop=true
 checkport=false
 disable_authorization_path=true
-changelog=内置 Tailscale @TAILSCALE_VERSION@ 稳定版；提供原创中文管理界面、双模式登录、设备状态、DERP 延迟、Exit Node 与版本检测；fnOS 打包修订号 @PACKAGE_REVISION@。
+changelog=内置 Tailscale @TAILSCALE_VERSION@ 稳定版；提供原创中文分页管理界面、双模式登录与账户登出、系统设备图标、设备分页、DERP 延迟、Exit Node、显示设置与版本检测；fnOS 打包修订号 @PACKAGE_REVISION@。

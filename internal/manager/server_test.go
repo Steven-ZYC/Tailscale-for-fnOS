@@ -130,6 +130,26 @@ func TestHostnameUsesOneFixedArgument(t *testing.T) {
 	}
 }
 
+func TestLogoutUsesOneFixedCommand(t *testing.T) {
+	var received []string
+	runner := fakeRunner{run: func(_ context.Context, args ...string) (CommandResult, error) {
+		received = append([]string(nil), args...)
+		return CommandResult{}, nil
+	}}
+	server := NewServer(newTestConfig(t, runner))
+	response := performRequest(t, server, http.MethodPost, "/api/logout", `{}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	if strings.Join(received, "|") != "logout" {
+		t.Fatalf("unexpected command: %#v", received)
+	}
+	data := decodeData[map[string]bool](t, response)
+	if data["logged_in"] {
+		t.Fatalf("unexpected logout response: %#v", data)
+	}
+}
+
 func TestAuthKeyIsPassedByTemporaryFile(t *testing.T) {
 	const secret = "tskey-auth-abcdefghijklmnopqrstuvwxyz123456"
 	var commandArgs []string

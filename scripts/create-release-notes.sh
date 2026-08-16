@@ -20,7 +20,10 @@ interface.
 ## fnos.0.1 features
 
 - Original Chinese dashboard; does not use the upstream CGI web interface
-- Connect/disconnect and browser-link or Auth Key login
+- Connect/disconnect, account logout, and browser-link or Auth Key login
+- Overview, Devices, and Settings pages with responsive navigation
+- OS-aware original SVG device icons, search, online filtering, and pagination
+- Browser-local font-size and interface-zoom controls
 - Tailnet device list and online-device count
 - On-demand DERP latency measurement
 - Local hostname and Exit Node advertisement controls

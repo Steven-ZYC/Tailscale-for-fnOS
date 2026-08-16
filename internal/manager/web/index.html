@@ -14,115 +14,157 @@
         <img class="brand-icon" src="./icon.png" alt="Tailscale">
         <div>
           <div class="brand-title">Tailscale</div>
-          <div class="brand-subtitle">for fnOS</div>
+          <div class="brand-subtitle">原生 fnOS 管理器</div>
         </div>
       </div>
       <div class="topbar-actions">
         <span class="version-chip" id="packageVersion">fnos.0.1</span>
         <button class="icon-button" id="refreshButton" type="button" aria-label="刷新状态" title="刷新状态">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"/></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
         </button>
       </div>
     </header>
 
+    <nav class="page-nav" aria-label="主要功能">
+      <button class="page-nav-item active" type="button" data-page="overview" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+        <span>概览</span>
+      </button>
+      <button class="page-nav-item" type="button" data-page="devices">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="12" height="9" rx="2"/><path d="M7 19h4m-2-6v6m9-10h3v10h-6v-3"/></svg>
+        <span>设备</span>
+      </button>
+      <button class="page-nav-item" type="button" data-page="settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
+        <span>设置</span>
+      </button>
+    </nav>
+
     <main class="content">
-      <section class="hero-card" aria-labelledby="connectionTitle">
-        <div class="hero-copy">
-          <div class="eyebrow"><span class="status-dot" id="statusDot"></span><span id="backendState">正在读取状态</span></div>
-          <h1 id="connectionTitle">安全连接你的每一台设备</h1>
-          <p id="connectionDescription">正在连接本机 Tailscale 服务，请稍候。</p>
-          <div class="identity-row" id="identityRow" hidden>
-            <span id="selfName">—</span>
-            <span class="identity-separator">·</span>
-            <span id="tailnetName">—</span>
+      <section class="app-page active" data-page-panel="overview" aria-labelledby="overviewTitle">
+        <section class="hero-card">
+          <div class="hero-copy">
+            <div class="eyebrow"><span class="status-dot" id="statusDot"></span><span>本机连接状态</span></div>
+            <h1 id="overviewTitle"><span id="backendState">正在读取状态</span></h1>
+            <p id="connectionDescription">正在连接本机 Tailscale 服务，请稍候。</p>
+            <div class="identity-row" id="identityRow" hidden>
+              <span id="selfName">—</span><span class="identity-separator">·</span><span id="tailnetName">—</span>
+            </div>
           </div>
-        </div>
-        <div class="hero-control">
-          <button class="power-button" id="powerButton" type="button" disabled>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v10M5.64 5.64a9 9 0 1 0 12.72 0"/></svg>
-          </button>
-          <span id="powerLabel">读取中</span>
-        </div>
-      </section>
+          <div class="hero-control">
+            <button class="power-button" id="powerButton" type="button" disabled aria-label="连接或断开 Tailscale">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v10"/><path d="M6.2 5.8a8 8 0 1 0 11.6 0"/></svg>
+            </button>
+            <span id="powerLabel">正在加载</span>
+          </div>
+        </section>
 
-      <section class="metrics-grid" aria-label="网络概览">
-        <article class="metric-card">
-          <div class="metric-icon online-icon"><span></span><span></span><span></span></div>
-          <div class="metric-copy"><span>在线设备</span><strong><b id="onlineCount">—</b><small id="totalCount"> / —</small></strong></div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-icon latency-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 0 1 16 0M7 17a5 5 0 0 1 10 0M10.5 20a1.5 1.5 0 1 1 3 0"/></svg>
-          </div>
-          <div class="metric-copy"><span>DERP 延迟</span><strong><b id="latencyValue">—</b><small id="latencyUnit"></small></strong></div>
-          <button class="metric-action" id="latencyButton" type="button">检测</button>
-        </article>
-        <article class="metric-card">
-          <div class="metric-icon ip-icon">100</div>
-          <div class="metric-copy"><span>Tailscale IP</span><strong class="mono metric-ip" id="tailscaleIP">—</strong></div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-icon update-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 20h14"/></svg>
-          </div>
-          <div class="metric-copy"><span>应用版本</span><strong class="version-value" id="versionValue">—</strong></div>
-          <span class="update-state" id="updateState">未检测</span>
-        </article>
-      </section>
+        <section class="metrics-grid" aria-label="连接指标">
+          <article class="metric-card">
+            <div class="metric-icon online-icon"><span></span><span></span><span></span></div>
+            <div class="metric-copy"><span>在线设备</span><strong><b id="onlineCount">—</b><small id="totalCount"> / —</small></strong></div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14a8 8 0 0 1 16 0M7 17a5 5 0 0 1 10 0m-5 3h.01"/></svg></div>
+            <div class="metric-copy"><span>DERP 延迟</span><strong><b id="latencyValue">—</b><small id="latencyUnit"></small></strong></div>
+            <button class="metric-action" id="latencyButton" type="button">检测</button>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon ip-icon">100</div>
+            <div class="metric-copy"><span>Tailscale IP</span><strong class="mono metric-ip" id="tailscaleIP">—</strong></div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon update-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 20h14"/></svg></div>
+            <div class="metric-copy"><span>应用版本</span><strong class="version-value" id="versionValue">—</strong></div>
+            <span class="update-state" id="updateState">未检测</span>
+          </article>
+        </section>
 
-      <div class="workspace-grid">
-        <section class="panel devices-panel" aria-labelledby="devicesTitle">
+        <section class="panel overview-devices-panel" aria-labelledby="overviewDevicesTitle">
           <div class="panel-header">
-            <div>
-              <h2 id="devicesTitle">网络设备</h2>
-              <p>当前 Tailnet 中可见的设备和连接状态</p>
+            <div><h2 id="overviewDevicesTitle">最近设备</h2><p>优先显示本机和当前在线的设备</p></div>
+            <button class="secondary-button" id="viewAllDevices" type="button">查看全部设备</button>
+          </div>
+          <div class="device-grid compact" id="overviewDeviceCards">
+            <div class="empty-state">正在加载设备列表…</div>
+          </div>
+        </section>
+      </section>
+
+      <section class="app-page" data-page-panel="devices" aria-labelledby="devicesTitle" hidden>
+        <header class="page-heading">
+          <div><span class="page-kicker">Tailnet</span><h1 id="devicesTitle">网络设备</h1><p>查看设备系统、地址、连接路径和在线状态。</p></div>
+          <div class="page-stat"><strong id="devicePageOnline">—</strong><span>台在线</span></div>
+        </header>
+        <section class="panel devices-panel">
+          <div class="panel-header device-toolbar">
+            <div class="filter-group" role="group" aria-label="设备筛选">
+              <button class="filter-button active" type="button" data-device-filter="all">全部</button>
+              <button class="filter-button" type="button" data-device-filter="online">仅在线</button>
             </div>
             <label class="search-box">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
               <input id="deviceSearch" type="search" placeholder="搜索名称或 IP" autocomplete="off">
             </label>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>设备</th><th>地址</th><th>连接</th><th>状态</th></tr></thead>
-              <tbody id="deviceRows">
-                <tr><td colspan="4"><div class="empty-state">正在加载设备列表…</div></td></tr>
-              </tbody>
-            </table>
+          <div class="device-grid" id="deviceCards">
+            <div class="empty-state">正在加载设备列表…</div>
+          </div>
+          <div class="pagination" id="devicePagination">
+            <button class="secondary-button" id="devicePrev" type="button">上一页</button>
+            <span id="devicePageLabel">第 1 / 1 页</span>
+            <button class="secondary-button" id="deviceNext" type="button">下一页</button>
           </div>
         </section>
+      </section>
 
-        <aside class="settings-stack">
-          <section class="panel settings-panel" aria-labelledby="settingsTitle">
-            <div class="panel-header compact"><div><h2 id="settingsTitle">本机设置</h2><p>仅影响当前 fnOS 设备</p></div></div>
+      <section class="app-page" data-page-panel="settings" aria-labelledby="settingsTitle">
+        <header class="page-heading">
+          <div><span class="page-kicker">本机管理</span><h1 id="settingsTitle">设置</h1><p>管理当前 fnOS 节点、界面显示和 Tailscale 账户。</p></div>
+        </header>
+        <div class="settings-layout">
+          <section class="panel settings-panel" aria-labelledby="nodeSettingsTitle">
+            <div class="panel-header compact"><div><h2 id="nodeSettingsTitle">节点与网络</h2><p>这些设置会写入本机 Tailscale 配置</p></div></div>
             <form class="setting-row hostname-form" id="hostnameForm">
-              <div class="setting-copy">
-                <label for="hostnameInput">设备名称</label>
-                <span>在 Tailnet 中显示的名称</span>
-              </div>
-              <div class="inline-form">
-                <input id="hostnameInput" type="text" maxlength="63" spellcheck="false" autocomplete="off" placeholder="fnos-nas">
-                <button class="secondary-button" type="submit">保存</button>
-              </div>
+              <div class="setting-copy"><label for="hostnameInput">设备名称</label><span>在 Tailnet 中显示的名称</span></div>
+              <div class="inline-form"><input id="hostnameInput" type="text" maxlength="63" spellcheck="false" autocomplete="off" placeholder="fnos-nas"><button class="secondary-button" type="submit">保存</button></div>
             </form>
             <div class="setting-row">
-              <div class="setting-copy">
-                <label for="exitNodeToggle">作为 Exit Node</label>
-                <span>向 Tailnet 广播本机作为互联网出口</span>
-              </div>
-              <label class="switch">
-                <input id="exitNodeToggle" type="checkbox">
-                <span class="switch-track"><span></span></span>
-              </label>
+              <div class="setting-copy"><label for="exitNodeToggle">作为 Exit Node</label><span>向 Tailnet 广播本机作为互联网出口</span></div>
+              <label class="switch"><input id="exitNodeToggle" type="checkbox"><span class="switch-track"><span></span></span></label>
             </div>
             <div class="setting-note" id="exitNodeNote">启用后还需要在 Tailscale 管理后台批准此设备。</div>
           </section>
 
+          <section class="panel settings-panel" aria-labelledby="appearanceTitle">
+            <div class="panel-header compact"><div><h2 id="appearanceTitle">显示</h2><p>设置只保存在当前浏览器中</p></div></div>
+            <label class="range-setting" for="fontScaleInput">
+              <span class="range-copy"><strong>字体大小</strong><small>单独调整文字可读性</small></span>
+              <span class="range-control"><input id="fontScaleInput" type="range" min="90" max="120" step="5" value="100"><output id="fontScaleValue" for="fontScaleInput">100%</output></span>
+            </label>
+            <label class="range-setting" for="uiZoomInput">
+              <span class="range-copy"><strong>界面缩放</strong><small>同时缩放卡片、图标和间距</small></span>
+              <span class="range-control"><input id="uiZoomInput" type="range" min="80" max="120" step="5" value="100"><output id="uiZoomValue" for="uiZoomInput">100%</output></span>
+            </label>
+            <div class="setting-action-row"><button class="secondary-button" id="appearanceResetButton" type="button">恢复默认显示</button></div>
+          </section>
+
+          <section class="panel account-panel" aria-labelledby="accountTitle">
+            <div class="panel-header compact"><div><h2 id="accountTitle">账户</h2><p>当前设备的 Tailscale 身份</p></div></div>
+            <dl class="account-details">
+              <div><dt>设备</dt><dd id="accountDeviceName">—</dd></div>
+              <div><dt>Tailnet</dt><dd id="accountTailnet">—</dd></div>
+              <div><dt>地址</dt><dd class="mono" id="accountIP">—</dd></div>
+            </dl>
+            <div class="danger-zone">
+              <div><strong>退出当前账户</strong><p>移除本机 Tailscale 登录身份；应用和显示设置不会被卸载。</p></div>
+              <button class="danger-button" id="logoutButton" type="button" disabled>退出登录</button>
+            </div>
+          </section>
+
           <section class="panel update-panel" aria-labelledby="updateTitle">
             <div class="update-heading">
-              <div class="update-mark">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 20h14"/></svg>
-              </div>
+              <div class="update-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 20h14"/></svg></div>
               <div><h2 id="updateTitle">版本更新</h2><p id="updateDescription">从 GitHub 检查已发布的 FPK</p></div>
             </div>
             <div class="update-actions">
@@ -130,8 +172,8 @@
               <a class="text-link" id="releaseLink" href="https://github.com/Steven-ZYC/Tailscale-for-fnOS/releases" target="_blank" rel="noopener noreferrer">查看 GitHub Releases</a>
             </div>
           </section>
-        </aside>
-      </div>
+        </div>
+      </section>
     </main>
 
     <footer>社区维护的第三方 fnOS 应用 · 使用官方 Tailscale 二进制</footer>
