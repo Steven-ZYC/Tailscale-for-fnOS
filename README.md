@@ -66,57 +66,6 @@ arm64 SHA-256、fnOS 打包修订号，以及锁定的 `fnpack` 工具摘要。
 和 `netcheck --format=json` 接口。这样可以保持较小的运行开销，也避免将
 本项目绑定到 Tailscale 未承诺稳定的内部 API。
 
-## 获取源码
-
-```bash
-git clone https://github.com/Steven-ZYC/Tailscale-for-fnOS.git
-cd Tailscale-for-fnOS
-```
-
-## 在 WSL2 Ubuntu 中构建
-
-从 PowerShell 调用已经检出的项目：
-
-```powershell
-wsl.exe -d Ubuntu -- bash -lc 'cd "/mnt/d/path/to/Tailscale-for-fnOS" && make build'
-```
-
-如果 Ubuntu 尚未安装 `make`，可以直接运行脚本：
-
-```powershell
-wsl.exe -d Ubuntu -- bash -lc 'cd "/mnt/d/path/to/Tailscale-for-fnOS" && ./scripts/validate.sh && ./scripts/install-fnpack.sh && ./scripts/build-all.sh'
-```
-
-也可以在 Ubuntu shell 中执行：
-
-```bash
-cd /path/to/Tailscale-for-fnOS
-make build
-```
-
-构建过程将：
-
-1. 检查 manifest、JSON、PNG 尺寸、Shell 语法和锁定摘要；
-2. 下载锁定版本的 fnOS 官方 `fnpack` 并验证 SHA-256；
-3. 下载 Tailscale 官方 amd64 与 arm64 stable 归档；
-4. 确认官方在线 `.sha256` 与 `upstream.lock` 一致；
-5. 在 `dist/` 下生成两个 FPK、`SHA256SUMS` 和 `provenance.json`。
-
-整个过程不使用 `curl | sh` 或 Docker。原创管理程序使用 Go 标准库静态编译，
-并由同一套源码交叉构建为 Linux amd64 和 arm64 二进制。
-
-常用命令：
-
-```bash
-make validate
-make test
-make detect-upstream
-make build-x86
-make build-arm
-make build
-make clean
-```
-
 ## 在 fnOS 上测试
 
 请使用可随时还原的纯净 fnOS 虚拟机，并按照

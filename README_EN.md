@@ -69,57 +69,6 @@ No 32-bit ARM package is currently produced.
   it through the fnOS App Center.
 - Does not silently delete the saved node identity during uninstall hooks.
 
-## Get the source
-
-```bash
-git clone https://github.com/Steven-ZYC/Tailscale-for-fnOS.git
-cd Tailscale-for-fnOS
-```
-
-## Build in WSL2 Ubuntu
-
-From PowerShell, with an existing checkout:
-
-```powershell
-wsl.exe -d Ubuntu -- bash -lc 'cd "/mnt/d/path/to/Tailscale-for-fnOS" && make build'
-```
-
-If `make` is not installed in Ubuntu, use the scripts directly:
-
-```powershell
-wsl.exe -d Ubuntu -- bash -lc 'cd "/mnt/d/path/to/Tailscale-for-fnOS" && ./scripts/validate.sh && ./scripts/install-fnpack.sh && ./scripts/build-all.sh'
-```
-
-Or from an Ubuntu shell:
-
-```bash
-cd /path/to/Tailscale-for-fnOS
-make build
-```
-
-The build process:
-
-1. Validates manifests, JSON, PNG sizes, shell syntax, and pinned digests.
-2. Downloads the pinned official fnOS `fnpack` binary and verifies its digest.
-3. Downloads official Tailscale amd64 and arm64 stable archives.
-4. Confirms the live official `.sha256` files still match `upstream.lock`.
-5. Generates two FPK files, `SHA256SUMS`, and `provenance.json` under `dist/`.
-
-No `curl | sh` or Docker is used. The original manager is statically compiled
-from standard-library-only Go source for Linux amd64 and arm64.
-
-Useful commands:
-
-```bash
-make validate
-make test
-make detect-upstream
-make build-x86
-make build-arm
-make build
-make clean
-```
-
 ## Test on fnOS
 
 Use a disposable clean VM and follow [`docs/VM_TESTING.md`](docs/VM_TESTING.md).
