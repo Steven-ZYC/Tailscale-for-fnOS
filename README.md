@@ -13,9 +13,9 @@
 
 ## 当前版本与架构
 
-当前项目里程碑为 **v0.2（测试版）**，对应当前 FPK 的 fnOS 修订号
-`fnos.0.2`。FPK 完整版本还包含所捆绑的 Tailscale 版本，例如
-`1.102.2-fnos.0.2`。
+当前项目里程碑为 **v0.3（测试版）**，对应当前 FPK 的 fnOS 修订号
+`fnos.0.3`。FPK 完整版本还包含所捆绑的 Tailscale 版本，例如
+`1.102.2-fnos.0.3`。
 
 [`upstream.lock`](upstream.lock) 记录当前锁定的 Tailscale 版本、amd64 与
 arm64 SHA-256、fnOS 打包修订号，以及锁定的 `fnpack` 工具摘要。

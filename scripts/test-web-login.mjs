@@ -172,17 +172,17 @@ async function fakeFetch(url) {
           tailscale_ips: ["100.64.0.2"],
           self: { name: "fnos-test", os: "linux", ips: ["100.64.0.2"], online: true, self: true },
           devices: [], online_count: 1, total_count: 1,
-          package_version: "1.102.2-fnos.0.2", tailscale_version: "1.102.2"
+          package_version: "1.102.2-fnos.0.3", tailscale_version: "1.102.2"
         }
       : {
           backend_state: "NeedsLogin", connected: false, logged_in: false,
           tailscale_ips: [], devices: [], online_count: 0, total_count: 0,
-          package_version: "1.102.2-fnos.0.2", tailscale_version: "1.102.2"
+          package_version: "1.102.2-fnos.0.3", tailscale_version: "1.102.2"
         };
   } else if (path.includes("api/login/browser")) {
     data = { auth_url: "https://login.tailscale.com/a/mock-test" };
   } else if (path.includes("api/update")) {
-    data = { current: "1.102.2-fnos.0.2", published: false };
+    data = { current: "1.102.2-fnos.0.3", published: false };
   } else if (path.includes("api/latency")) {
     data = { nearest_ms: 12, preferred_derp: 1 };
   }

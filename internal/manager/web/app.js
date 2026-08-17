@@ -206,7 +206,7 @@ function renderDevices() {
 function renderStatus(status) {
   appState.status = status;
   appState.devices = status.devices || [];
-  elements.packageVersion.textContent = status.package_version || "fnos.0.2";
+  elements.packageVersion.textContent = status.package_version || "fnos.0.3";
   elements.versionValue.textContent = status.package_version || "—";
   elements.backendState.textContent = backendLabel(status.backend_state);
   elements.statusDot.className = `status-dot ${status.connected ? "connected" : status.logged_in ? "warning" : "error"}`;

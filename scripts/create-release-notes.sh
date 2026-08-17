@@ -17,7 +17,7 @@ Community-maintained native fnOS packages containing the official Tailscale
 ${TAILSCALE_VERSION} stable Linux binaries and an original fnOS management
 interface.
 
-## fnos.0.2 features
+## fnos.0.3 features
 
 - Original Chinese dashboard; does not use the upstream CGI web interface
 - Connect/disconnect, account logout, and automatic browser or Auth Key login
