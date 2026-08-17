@@ -14,9 +14,9 @@ binaries from Tailscale's stable package server. Docker is not required.
 
 ## Current pinned release
 
-The current project milestone is **v0.3 (test release)**, represented by the
-`fnos.0.3` package revision. The complete FPK version also includes the bundled
-Tailscale version, for example `1.102.2-fnos.0.3`.
+The current project milestone is **v0.4 (test release)**, represented by the
+`fnos.0.4` package revision. The complete FPK version also includes the bundled
+Tailscale version, for example `1.102.2-fnos.0.4`.
 
 See [`upstream.lock`](upstream.lock) for the exact Tailscale version, amd64 and
 arm64 SHA-256 digests, the fnOS package revision, and the pinned `fnpack` tool
@@ -48,8 +48,9 @@ No 32-bit ARM package is currently produced.
   search, online filtering, pagination, and online counts.
 - Provides DERP latency checks, hostname changes, and local Exit Node
   advertisement controls.
-- Splits the interface into Overview, Devices, and Settings pages. Font size and
-  interface zoom preferences are stored only in the current browser.
+- Splits the interface into Overview, Devices, and Settings pages. v0.4 rebases
+  the previous 120% font and 80% interface zoom as the new 100% defaults and
+  stores display preferences only in the current browser.
 - Checks GitHub Releases for newer FPK packages and only displays a notification;
   it never self-updates the NAS installation.
 - Does not run `tailscale update`; updates are delivered only as new FPK files.

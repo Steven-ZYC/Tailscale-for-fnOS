@@ -13,7 +13,9 @@ const elements = Object.fromEntries([
   "browserLoginButton", "authLink", "authKeyInput", "keyLoginButton", "toastRegion"
 ].map((id) => [id, document.getElementById(id)]));
 
-const APPEARANCE_KEY = "tailscale-fnos-appearance-v1";
+const APPEARANCE_KEY = "tailscale-fnos-appearance-v2";
+const LEGACY_APPEARANCE_KEY = "tailscale-fnos-appearance-v1";
+const DEFAULT_APPEARANCE = Object.freeze({ fontScale: 100, uiZoom: 100 });
 const validPages = new Set(["overview", "devices", "settings"]);
 
 const appState = {
@@ -27,7 +29,7 @@ const appState = {
   deviceFilter: "all",
   devicePage: 1,
   devicePageSize: 8,
-  appearance: { fontScale: 100, uiZoom: 100 }
+  appearance: { ...DEFAULT_APPEARANCE }
 };
 
 async function request(path, options = {}) {
@@ -206,7 +208,7 @@ function renderDevices() {
 function renderStatus(status) {
   appState.status = status;
   appState.devices = status.devices || [];
-  elements.packageVersion.textContent = status.package_version || "fnos.0.3";
+  elements.packageVersion.textContent = status.package_version || "fnos.0.4";
   elements.versionValue.textContent = status.package_version || "—";
   elements.backendState.textContent = backendLabel(status.backend_state);
   elements.statusDot.className = `status-dot ${status.connected ? "connected" : status.logged_in ? "warning" : "error"}`;
@@ -517,11 +519,11 @@ async function checkUpdate(showError = true) {
 }
 
 function applyAppearance(save = true) {
-  const fontScale = clamp(appState.appearance.fontScale, 90, 120, 100);
-  const uiZoom = clamp(appState.appearance.uiZoom, 80, 120, 100);
+  const fontScale = clamp(appState.appearance.fontScale, 70, 160, 100);
+  const uiZoom = clamp(appState.appearance.uiZoom, 50, 160, 100);
   appState.appearance = { fontScale, uiZoom };
-  document.documentElement.style.setProperty("--font-delta", `${(fontScale - 100) / 5}px`);
-  document.documentElement.style.setProperty("--ui-zoom", String(uiZoom / 100));
+  document.documentElement.style.setProperty("--font-delta", `${4 + (fontScale - 100) / 5}px`);
+  document.documentElement.style.setProperty("--ui-zoom", String(Number((0.8 * uiZoom / 100).toFixed(3))));
   elements.fontScaleInput.value = String(fontScale);
   elements.fontScaleValue.textContent = `${fontScale}%`;
   elements.uiZoomInput.value = String(uiZoom);
@@ -530,17 +532,36 @@ function applyAppearance(save = true) {
 }
 
 function loadAppearance() {
+  let stored = null;
   try {
-    const stored = JSON.parse(window.localStorage.getItem(APPEARANCE_KEY) || "null");
-    if (stored) appState.appearance = stored;
+    stored = JSON.parse(window.localStorage.getItem(APPEARANCE_KEY) || "null");
   } catch {
     window.localStorage.removeItem(APPEARANCE_KEY);
+  }
+  if (stored) {
+    appState.appearance = stored;
+    applyAppearance(false);
+    return;
+  }
+
+  try {
+    const legacy = JSON.parse(window.localStorage.getItem(LEGACY_APPEARANCE_KEY) || "null");
+    if (legacy) {
+      appState.appearance = {
+        fontScale: clamp(Number(legacy.fontScale) - 20, 70, 160, 100),
+        uiZoom: clamp(Number(legacy.uiZoom) / 0.8, 50, 160, 100)
+      };
+      applyAppearance(true);
+      return;
+    }
+  } catch {
+    window.localStorage.removeItem(LEGACY_APPEARANCE_KEY);
   }
   applyAppearance(false);
 }
 
 function resetAppearance() {
-  appState.appearance = { fontScale: 100, uiZoom: 100 };
+  appState.appearance = { ...DEFAULT_APPEARANCE };
   applyAppearance(true);
   toast("显示设置已恢复默认", "success");
 }

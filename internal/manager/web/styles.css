@@ -15,8 +15,8 @@
   --amber: #a76308;
   --amber-soft: #fff6e4;
   --shadow: 0 15px 45px rgba(31, 30, 28, .06);
-  --font-delta: 0px;
-  --ui-zoom: 1;
+  --font-delta: 4px;
+  --ui-zoom: .8;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   color: var(--ink);
   background: var(--canvas);

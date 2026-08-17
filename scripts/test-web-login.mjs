@@ -109,6 +109,7 @@ elements.get("fontScaleInput").value = "100";
 elements.get("uiZoomInput").value = "100";
 
 const intervals = new Map();
+const styleValues = new Map();
 let intervalSequence = 0;
 let loggedIn = false;
 let popupBlocked = false;
@@ -116,7 +117,7 @@ const openedURLs = [];
 
 const document = {
   activeElement: null,
-  documentElement: { style: { setProperty() {} } },
+  documentElement: { style: { setProperty(name, value) { styleValues.set(name, value); } } },
   getElementById(id) {
     return elements.get(id) || null;
   },
@@ -128,7 +129,9 @@ const document = {
   }
 };
 
-const localStorageValues = new Map();
+const localStorageValues = new Map([
+  ["tailscale-fnos-appearance-v1", JSON.stringify({ fontScale: 120, uiZoom: 80 })]
+]);
 const windowObject = {
   document,
   location: { hash: "" },
@@ -172,17 +175,17 @@ async function fakeFetch(url) {
           tailscale_ips: ["100.64.0.2"],
           self: { name: "fnos-test", os: "linux", ips: ["100.64.0.2"], online: true, self: true },
           devices: [], online_count: 1, total_count: 1,
-          package_version: "1.102.2-fnos.0.3", tailscale_version: "1.102.2"
+          package_version: "1.102.2-fnos.0.4", tailscale_version: "1.102.2"
         }
       : {
           backend_state: "NeedsLogin", connected: false, logged_in: false,
           tailscale_ips: [], devices: [], online_count: 0, total_count: 0,
-          package_version: "1.102.2-fnos.0.3", tailscale_version: "1.102.2"
+          package_version: "1.102.2-fnos.0.4", tailscale_version: "1.102.2"
         };
   } else if (path.includes("api/login/browser")) {
     data = { auth_url: "https://login.tailscale.com/a/mock-test" };
   } else if (path.includes("api/update")) {
-    data = { current: "1.102.2-fnos.0.3", published: false };
+    data = { current: "1.102.2-fnos.0.4", published: false };
   } else if (path.includes("api/latency")) {
     data = { nearest_ms: 12, preferred_derp: 1 };
   }
@@ -196,12 +199,34 @@ const context = vm.createContext({
   fetch: fakeFetch
 });
 
+const indexSource = await readFile(new URL("../internal/manager/web/index.html", import.meta.url), "utf8");
+assert.match(indexSource, /id="fontScaleInput"[^>]+min="70"[^>]+max="160"/);
+assert.match(indexSource, /id="uiZoomInput"[^>]+min="50"[^>]+max="160"/);
+
 const source = await readFile(new URL("../internal/manager/web/app.js", import.meta.url), "utf8");
 vm.runInContext(source, context, { filename: "app.js" });
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 await flush();
 await flush();
+
+assert.equal(elements.get("fontScaleValue").textContent, "100%", "legacy 120% font should migrate to the new 100%");
+assert.equal(elements.get("uiZoomValue").textContent, "100%", "legacy 80% zoom should migrate to the new 100%");
+assert.equal(styleValues.get("--font-delta"), "4px");
+assert.equal(styleValues.get("--ui-zoom"), "0.8");
+assert.ok(localStorageValues.has("tailscale-fnos-appearance-v2"), "migrated display settings should use the v2 key");
+
+elements.get("fontScaleInput").value = "160";
+await elements.get("fontScaleInput").emit("input");
+assert.equal(styleValues.get("--font-delta"), "16px", "font range should extend above the old maximum");
+elements.get("uiZoomInput").value = "50";
+await elements.get("uiZoomInput").emit("input");
+assert.equal(styleValues.get("--ui-zoom"), "0.4", "interface zoom should extend below the old minimum");
+await elements.get("appearanceResetButton").emit("click");
+assert.equal(elements.get("fontScaleValue").textContent, "100%");
+assert.equal(elements.get("uiZoomValue").textContent, "100%");
+assert.equal(styleValues.get("--font-delta"), "4px");
+assert.equal(styleValues.get("--ui-zoom"), "0.8");
 
 await elements.get("powerButton").emit("click");
 assert.equal(elements.get("loginDialog").open, true, "login dialog should open for a logged-out device");
@@ -231,4 +256,4 @@ assert.equal(elements.get("authLink").hidden, false, "a blocked pop-up should re
 assert.equal(elements.get("authLink").href, "https://login.tailscale.com/a/mock-test");
 elements.get("loginDialog").close();
 
-console.log("web login interaction tests passed");
+console.log("web UI interaction tests passed");

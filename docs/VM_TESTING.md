@@ -40,8 +40,9 @@ Use a disposable fnOS VM. Do not put a production NAS or its data in scope.
    online-only filter, and previous/next pagination.
 4. Confirm Windows, macOS, iOS, Android, Linux, BSD, and the local fnOS node use
    distinct system icons when those operating systems are present.
-5. Change font size and interface zoom, reload the window, and confirm both
-   values persist. Restore the display defaults before continuing.
+5. Confirm the v0.4 display default matches v0.3 at 120% font and 80% interface
+   zoom. Test the full 70-160% font and 50-160% interface ranges, reload the
+   window, and confirm both values persist. Restore the defaults before continuing.
 6. Use `tailscale status` in SSH to record the current node identity. Choose
    **退出登录** in Settings, confirm the warning, and verify the UI returns to
    NeedsLogin. Log in again and confirm a valid node appears in the Tailnet.

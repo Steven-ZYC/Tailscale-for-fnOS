@@ -17,13 +17,13 @@ Community-maintained native fnOS packages containing the official Tailscale
 ${TAILSCALE_VERSION} stable Linux binaries and an original fnOS management
 interface.
 
-## fnos.0.3 features
+## fnos.0.4 features
 
 - Original Chinese dashboard; does not use the upstream CGI web interface
 - Connect/disconnect, account logout, and automatic browser or Auth Key login
 - Overview, Devices, and Settings pages with responsive navigation
 - OS-aware original SVG device icons, search, online filtering, and pagination
-- Browser-local font-size and interface-zoom controls
+- Rebased display defaults with 70-160% font and 50-160% interface-zoom controls
 - Tailnet device list and online-device count
 - On-demand DERP latency measurement
 - Local hostname and Exit Node advertisement controls
