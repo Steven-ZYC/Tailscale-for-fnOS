@@ -40,7 +40,8 @@ No 32-bit ARM package is currently produced.
 - The manager is not a resident daemon. It runs only for page/API requests and
   invokes the official `tailscale` CLI with fixed, validated arguments.
 - Restricts the desktop entry to fnOS administrators.
-- Supports both browser-link and Auth Key login. Auth Keys are passed through a
+- Supports automatic browser login with login-dialog completion detection and
+  Auth Key login. Auth Keys are passed through a
   mode-`0600` temporary file and deleted immediately after use.
 - Provides connect/disconnect and account logout.
 - Shows project-original inline SVG icons by operating system, with device

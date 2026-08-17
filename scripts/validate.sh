@@ -55,6 +55,7 @@ unformatted="$(gofmt -l "${PROJECT_ROOT}/cmd" "${PROJECT_ROOT}/internal")"
 
 if command -v node >/dev/null 2>&1; then
   node --check "${PROJECT_ROOT}/internal/manager/web/app.js"
+  node "${PROJECT_ROOT}/scripts/test-web-login.mjs"
 fi
 
 require_command python3

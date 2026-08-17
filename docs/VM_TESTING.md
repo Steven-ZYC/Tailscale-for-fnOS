@@ -31,15 +31,18 @@ Use a disposable fnOS VM. Do not put a production NAS or its data in scope.
 
 ## Management UI acceptance
 
-1. Open Overview, Devices, and Settings from the fnOS desktop window and confirm
+1. Start browser login and confirm one click opens the Tailscale authorization
+   page. After authorization succeeds, confirm the login dialog closes by itself.
+   If pop-ups are blocked, confirm a manual fallback link is shown.
+2. Open Overview, Devices, and Settings from the fnOS desktop window and confirm
    each page loads without a full-page navigation or HTTP error.
-2. Populate a Tailnet with more than eight devices, then verify search, the
+3. Populate a Tailnet with more than eight devices, then verify search, the
    online-only filter, and previous/next pagination.
-3. Confirm Windows, macOS, iOS, Android, Linux, BSD, and the local fnOS node use
+4. Confirm Windows, macOS, iOS, Android, Linux, BSD, and the local fnOS node use
    distinct system icons when those operating systems are present.
-4. Change font size and interface zoom, reload the window, and confirm both
+5. Change font size and interface zoom, reload the window, and confirm both
    values persist. Restore the display defaults before continuing.
-5. Use `tailscale status` in SSH to record the current node identity. Choose
+6. Use `tailscale status` in SSH to record the current node identity. Choose
    **退出登录** in Settings, confirm the warning, and verify the UI returns to
    NeedsLogin. Log in again and confirm a valid node appears in the Tailnet.
 

@@ -190,9 +190,9 @@
         <button class="login-tab" id="keyTab" type="button" role="tab" aria-selected="false">Auth Key</button>
       </div>
       <section class="login-pane active" id="browserPane" role="tabpanel">
-        <p>生成一次性授权链接，在新窗口完成 Tailscale 官方登录。</p>
-        <button class="primary-button wide" id="browserLoginButton" type="button">生成登录链接</button>
-        <a class="auth-link" id="authLink" target="_blank" rel="noopener noreferrer" hidden>打开 Tailscale 授权页面</a>
+        <p>将在新窗口打开一次性授权页面；登录成功后，本弹窗会自动关闭。</p>
+        <button class="primary-button wide" id="browserLoginButton" type="button">登录并打开授权页面</button>
+        <a class="auth-link" id="authLink" target="_blank" rel="noopener noreferrer" hidden>备用：手动打开 Tailscale 授权页面</a>
       </section>
       <section class="login-pane" id="keyPane" role="tabpanel" hidden>
         <label class="field-label" for="authKeyInput">Tailscale Auth Key</label>

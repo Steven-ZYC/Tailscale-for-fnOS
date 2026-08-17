@@ -22,6 +22,7 @@ const appState = {
   refreshing: false,
   latencyMeasured: false,
   statusTimer: null,
+  loginTimer: null,
   currentPage: "overview",
   deviceFilter: "all",
   devicePage: 1,
@@ -243,6 +244,12 @@ function renderStatus(status) {
   elements.logoutButton.disabled = !status.logged_in;
   renderDevices();
 
+  if (status.logged_in && elements.loginDialog.open) {
+    stopLoginPolling();
+    elements.loginDialog.close();
+    toast(status.connected ? "登录成功，Tailscale 已连接" : "登录成功，正在等待网络就绪", "success");
+  }
+
   if (status.connected && !appState.latencyMeasured) {
     appState.latencyMeasured = true;
     measureLatency(false);
@@ -343,18 +350,62 @@ function showAuthLink(url) {
   elements.authLink.hidden = false;
 }
 
+function stopLoginPolling() {
+  if (!appState.loginTimer) return;
+  window.clearInterval(appState.loginTimer);
+  appState.loginTimer = null;
+}
+
+function startLoginPolling() {
+  stopLoginPolling();
+  const deadline = Date.now() + 5 * 60 * 1000;
+  appState.loginTimer = window.setInterval(async () => {
+    if (!elements.loginDialog.open || Date.now() >= deadline) {
+      stopLoginPolling();
+      return;
+    }
+    await loadStatus(false);
+  }, 2000);
+}
+
 async function browserLogin() {
-  setBusy(elements.browserLoginButton, true, "正在生成…");
+  elements.authLink.hidden = true;
+  elements.authLink.removeAttribute("href");
+  const authWindow = window.open("about:blank", "_blank");
+  if (authWindow) {
+    try {
+      authWindow.opener = null;
+    } catch {
+      // The authorization window may already be isolated by the browser.
+    }
+  }
+  setBusy(elements.browserLoginButton, true, "正在获取授权链接…");
   try {
     const result = await post("login/browser");
     if (result.auth_url) {
-      showAuthLink(result.auth_url);
-      toast("授权链接已经生成，请在新页面完成登录", "success");
+      let opened = false;
+      if (authWindow && !authWindow.closed) {
+        try {
+          authWindow.location.replace(result.auth_url);
+          opened = true;
+        } catch {
+          authWindow.close();
+        }
+      }
+      if (opened) {
+        toast("已打开 Tailscale 授权页面，登录完成后本窗口会自动更新", "success");
+      } else {
+        showAuthLink(result.auth_url);
+        toast("浏览器阻止了新窗口，请点击备用授权链接", "error");
+      }
+      startLoginPolling();
     } else {
+      if (authWindow && !authWindow.closed) authWindow.close();
       toast("设备已经登录并连接", "success");
       elements.loginDialog.close();
     }
   } catch (error) {
+    if (authWindow && !authWindow.closed) authWindow.close();
     toast(error.message, "error");
   } finally {
     setBusy(elements.browserLoginButton, false);
@@ -520,8 +571,10 @@ elements.fontScaleInput.addEventListener("input", () => { appState.appearance.fo
 elements.uiZoomInput.addEventListener("input", () => { appState.appearance.uiZoom = Number(elements.uiZoomInput.value); applyAppearance(true); });
 elements.appearanceResetButton.addEventListener("click", resetAppearance);
 elements.loginDialog.addEventListener("close", () => {
+  stopLoginPolling();
   elements.authKeyInput.value = "";
   elements.authLink.hidden = true;
+  elements.authLink.removeAttribute("href");
 });
 window.addEventListener("hashchange", () => navigate(window.location.hash.slice(1), false));
 
