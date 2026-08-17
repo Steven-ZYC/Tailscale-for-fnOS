@@ -14,9 +14,19 @@ binaries from Tailscale's stable package server. Docker is not required.
 
 ## Current pinned release
 
-The current project milestone is **v0.4 (test release)**, represented by the
-`fnos.0.4` package revision. The complete FPK version also includes the bundled
-Tailscale version, for example `1.102.2-fnos.0.4`.
+The current fnOS community release is **fnos.0.4 (test release)**. Complete FPK
+versions and formal GitHub release tags use
+`v<Tailscale-version>-fnos.<community-version>`, for example
+`v1.102.2-fnos.0.4`:
+
+- `1.102.2` is the bundled official Tailscale version;
+- `fnos.0.4` is the version of this project's fnOS community integration and
+  upper management UI;
+- the leading `v` is a Git tag prefix and is not part of the internal FPK version.
+
+Future formal releases use only the complete tag. Short tags such as `v0.x` are
+not formal release identifiers; the existing `v0.1` is retained only as an
+early source milestone.
 
 See [`upstream.lock`](upstream.lock) for the exact Tailscale version, amd64 and
 arm64 SHA-256 digests, the fnOS package revision, and the pinned `fnpack` tool
