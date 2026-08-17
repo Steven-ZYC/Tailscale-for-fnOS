@@ -64,6 +64,9 @@ No 32-bit ARM package is currently produced.
 - Checks GitHub Releases for newer FPK packages and only displays a notification;
   it never self-updates the NAS installation.
 - Does not run `tailscale update`; updates are delivered only as new FPK files.
+- Does not support upgrading this app through Tailscale Admin Console remote or
+  automatic updates. Download a new FPK manually from GitHub Releases or update
+  it through the fnOS App Center.
 - Does not silently delete the saved node identity during uninstall hooks.
 
 ## Get the source
@@ -132,7 +135,8 @@ remain interactive acceptance tests.
 
 ## Automated updates
 
-`Track Tailscale stable releases` runs hourly at minute 17 and cross-checks:
+`Track Tailscale stable releases` runs once per day at 01:17 UTC (09:17 in
+Hong Kong/Beijing) and cross-checks:
 
 - the latest full release in `tailscale/tailscale`; and
 - the Linux amd64 package shown by Tailscale's stable package server.
@@ -141,6 +145,12 @@ When both sources agree on a newer version, the workflow refreshes official
 digests, builds both FPK packages, and opens an update pull request. Merging the
 update to `main` creates a **draft GitHub Release**. Publish that draft only after
 the clean-VM test gate passes.
+
+Tailscale Admin Console can manage the node and display its client version, but
+it cannot upgrade this project's complete FPK, Go management UI, manifest, or
+fnOS lifecycle scripts. Do not use its remote or automatic update controls as
+the upgrade channel for this app. Install the complete new FPK from GitHub
+Releases or the fnOS App Center instead.
 
 Repository settings must allow GitHub Actions to create pull requests for the
 automated update PR step. If that permission is disabled, the workflow still

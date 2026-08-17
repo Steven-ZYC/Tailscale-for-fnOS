@@ -55,6 +55,8 @@ arm64 SHA-256、fnOS 打包修订号，以及锁定的 `fnpack` 工具摘要。
   当前浏览器，不写入 Tailscale 状态；
 - 通过 GitHub Releases 检测 FPK 新版本，只提示下载，不在 NAS 上自行更新；
 - 不执行 `tailscale update`，所有升级只通过新的 FPK 交付；
+- 不支持通过 Tailscale Admin Console 的远程更新或自动更新功能升级本应用；
+  请从本项目的 GitHub Releases 手动下载新版 FPK，或通过飞牛应用商店更新；
 - 卸载生命周期脚本不会静默删除已保存的节点身份。
 
 ## 实现边界
@@ -129,7 +131,8 @@ sudo ./scripts/device-smoke-test.sh /path/to/tailscale-fnos_VERSION_x86.fpk
 
 ## 自动跟踪上游更新
 
-GitHub Actions 中的 `Track Tailscale stable releases` 每小时第 17 分钟运行，
+GitHub Actions 中的 `Track Tailscale stable releases` 每天在 UTC 01:17
+（北京时间/香港时间 09:17）运行，
 同时核对：
 
 - `tailscale/tailscale` 最新正式 Release；
@@ -138,6 +141,11 @@ GitHub Actions 中的 `Track Tailscale stable releases` 每小时第 17 分钟�
 两个来源确认同一个新版本后，工作流会更新官方摘要、构建并验证两个 FPK，
 然后创建升级 Pull Request。升级合并到 `main` 后，发布工作流会创建一个
 **GitHub 草稿 Release**。只有在纯净虚拟机测试通过后才应手动公开发布。
+
+Tailscale Admin Console 只能管理节点及显示客户端版本，不能完整升级本项目的
+FPK、Go 管理界面、manifest 或 fnOS 生命周期脚本。请勿将其中的远程更新或
+自动更新作为本应用的升级渠道；用户应安装 GitHub Releases 或飞牛应用商店
+提供的完整新版 FPK。
 
 需要在 GitHub 仓库设置中允许 GitHub Actions 创建 Pull Request。若未开启，
 工作流仍能验证候选版本，但无法自动创建 PR。
