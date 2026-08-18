@@ -12,10 +12,9 @@ binaries from Tailscale's stable package server. Docker is not required.
 > or endorsed by Tailscale Inc. or the fnOS vendor. Tailscale is a registered
 > trademark of Tailscale Inc.
 
-## Current pinned release
+## Version naming
 
-The current fnOS community release is **fnos.0.4 (test release)**. Complete FPK
-versions and formal GitHub release tags use
+Complete FPK versions and formal GitHub release tags use
 `v<Tailscale-version>-fnos.<community-version>`, for example
 `v1.102.2-fnos.0.4`:
 
@@ -23,21 +22,6 @@ versions and formal GitHub release tags use
 - `fnos.0.4` is the version of this project's fnOS community integration and
   upper management UI;
 - the leading `v` is a Git tag prefix and is not part of the internal FPK version.
-
-Future formal releases use only the complete tag. Short tags such as `v0.x` are
-not formal release identifiers; the existing `v0.1` is retained only as an
-early source milestone.
-
-See [`upstream.lock`](upstream.lock) for the exact Tailscale version, amd64 and
-arm64 SHA-256 digests, the fnOS package revision, and the pinned `fnpack` tool
-digest.
-
-The build produces two packages:
-
-- `x86`: fnOS x86 platform with Tailscale's amd64 binaries;
-- `arm`: fnOS ARM platform with Tailscale's arm64 binaries.
-
-No 32-bit ARM package is currently produced.
 
 ## Package behavior
 
@@ -59,8 +43,10 @@ No 32-bit ARM package is currently produced.
 - Provides DERP latency checks, hostname changes, and local Exit Node
   advertisement controls.
 - Splits the interface into Overview, Devices, and Settings pages. v0.4 rebases
-  the previous 120% font and 80% interface zoom as the new 100% defaults and
-  stores display preferences only in the current browser.
+  the previous 120% font and 80% interface zoom as the new 100% defaults. v0.5
+  adds editable percentage fields and applies scaling only after dragging or
+  typing is complete to prevent range-thumb jumps. Display preferences remain
+  local to the current browser.
 - Checks GitHub Releases for newer FPK packages and only displays a notification;
   it never self-updates the NAS installation.
 - Does not run `tailscale update`; updates are delivered only as new FPK files.

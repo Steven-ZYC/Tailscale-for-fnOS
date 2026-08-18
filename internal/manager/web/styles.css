@@ -218,9 +218,13 @@ tbody tr:hover { background: #fbfaf8; }
 .range-copy { min-width: 140px; display: flex; flex-direction: column; gap: 5px; }
 .range-copy strong { font-size: calc(12px + var(--font-delta)); }
 .range-copy small { color: var(--muted); font-size: calc(10px + var(--font-delta)); line-height: 1.4; }
-.range-control { width: min(230px, 52%); display: grid; grid-template-columns: minmax(90px, 1fr) 44px; align-items: center; gap: 11px; }
-.range-control input { width: 100%; accent-color: var(--accent); cursor: pointer; }
-.range-control output { color: var(--accent); font: 700 calc(10px + var(--font-delta))/1 ui-monospace, monospace; text-align: right; }
+.range-control { width: min(270px, 60%); display: grid; grid-template-columns: minmax(90px, 1fr) 88px; align-items: center; gap: 11px; }
+.range-control > input { width: 100%; accent-color: var(--accent); cursor: pointer; }
+.range-value-field { height: 34px; padding: 0 8px; display: flex; align-items: center; gap: 2px; color: var(--accent); border: 1px solid #d8dbe5; border-radius: 8px; background: #fff; transition: border-color .18s ease, box-shadow .18s ease; }
+.range-value-field:focus-within { border-color: #9ba9da; box-shadow: 0 0 0 3px rgba(60,93,191,.08); }
+.range-value-field input { width: 100%; min-width: 0; padding: 0; color: inherit; border: 0; outline: 0; background: transparent; appearance: textfield; font: 700 calc(10px + var(--font-delta))/1 ui-monospace, monospace; text-align: right; }
+.range-value-field input::-webkit-inner-spin-button, .range-value-field input::-webkit-outer-spin-button { margin: 0; appearance: none; }
+.range-value-field span { font: 700 calc(10px + var(--font-delta))/1 ui-monospace, monospace; }
 .setting-action-row { min-height: 66px; padding: 14px 21px; display: flex; align-items: center; justify-content: flex-end; }
 .account-details { margin: 0; padding: 7px 21px; }
 .account-details > div { min-height: 48px; display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: center; gap: 14px; border-bottom: 1px solid #f0efed; }

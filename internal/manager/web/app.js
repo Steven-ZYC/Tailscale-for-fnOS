@@ -208,7 +208,7 @@ function renderDevices() {
 function renderStatus(status) {
   appState.status = status;
   appState.devices = status.devices || [];
-  elements.packageVersion.textContent = status.package_version || "fnos.0.4";
+  elements.packageVersion.textContent = status.package_version || "fnos.0.5";
   elements.versionValue.textContent = status.package_version || "—";
   elements.backendState.textContent = backendLabel(status.backend_state);
   elements.statusDot.className = `status-dot ${status.connected ? "connected" : status.logged_in ? "warning" : "error"}`;
@@ -525,9 +525,9 @@ function applyAppearance(save = true) {
   document.documentElement.style.setProperty("--font-delta", `${4 + (fontScale - 100) / 5}px`);
   document.documentElement.style.setProperty("--ui-zoom", String(Number((0.8 * uiZoom / 100).toFixed(3))));
   elements.fontScaleInput.value = String(fontScale);
-  elements.fontScaleValue.textContent = `${fontScale}%`;
+  elements.fontScaleValue.value = String(fontScale);
   elements.uiZoomInput.value = String(uiZoom);
-  elements.uiZoomValue.textContent = `${uiZoom}%`;
+  elements.uiZoomValue.value = String(uiZoom);
   if (save) window.localStorage.setItem(APPEARANCE_KEY, JSON.stringify(appState.appearance));
 }
 
@@ -566,6 +566,32 @@ function resetAppearance() {
   toast("显示设置已恢复默认", "success");
 }
 
+function previewAppearance(property, input, valueInput, minimum, maximum) {
+  const value = clamp(input.value, minimum, maximum, DEFAULT_APPEARANCE[property]);
+  appState.appearance[property] = value;
+  valueInput.value = String(value);
+}
+
+function commitAppearance(property, input, valueInput, minimum, maximum) {
+  previewAppearance(property, input, valueInput, minimum, maximum);
+  applyAppearance(true);
+}
+
+function commitAppearanceValue(property, input, valueInput, minimum, maximum) {
+  const fallback = clamp(appState.appearance[property], minimum, maximum, DEFAULT_APPEARANCE[property]);
+  const value = clamp(valueInput.value, minimum, maximum, fallback);
+  appState.appearance[property] = value;
+  input.value = String(value);
+  valueInput.value = String(value);
+  applyAppearance(true);
+}
+
+function commitAppearanceValueOnEnter(event) {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  event.currentTarget.blur();
+}
+
 document.querySelectorAll("[data-page]").forEach((button) => button.addEventListener("click", () => navigate(button.dataset.page)));
 document.querySelectorAll("[data-device-filter]").forEach((button) => button.addEventListener("click", () => {
   appState.deviceFilter = button.dataset.deviceFilter;
@@ -588,8 +614,17 @@ elements.browserTab.addEventListener("click", () => selectLoginTab("browser"));
 elements.keyTab.addEventListener("click", () => selectLoginTab("key"));
 elements.browserLoginButton.addEventListener("click", browserLogin);
 elements.keyLoginButton.addEventListener("click", authKeyLogin);
-elements.fontScaleInput.addEventListener("input", () => { appState.appearance.fontScale = Number(elements.fontScaleInput.value); applyAppearance(true); });
-elements.uiZoomInput.addEventListener("input", () => { appState.appearance.uiZoom = Number(elements.uiZoomInput.value); applyAppearance(true); });
+// Keep the page geometry fixed while a range thumb is being dragged. Applying
+// CSS zoom on every input event moves the range under the pointer and can make
+// the browser recalculate an unintended value (most visibly the 50% minimum).
+elements.fontScaleInput.addEventListener("input", () => previewAppearance("fontScale", elements.fontScaleInput, elements.fontScaleValue, 70, 160));
+elements.fontScaleInput.addEventListener("change", () => commitAppearance("fontScale", elements.fontScaleInput, elements.fontScaleValue, 70, 160));
+elements.uiZoomInput.addEventListener("input", () => previewAppearance("uiZoom", elements.uiZoomInput, elements.uiZoomValue, 50, 160));
+elements.uiZoomInput.addEventListener("change", () => commitAppearance("uiZoom", elements.uiZoomInput, elements.uiZoomValue, 50, 160));
+elements.fontScaleValue.addEventListener("change", () => commitAppearanceValue("fontScale", elements.fontScaleInput, elements.fontScaleValue, 70, 160));
+elements.fontScaleValue.addEventListener("keydown", commitAppearanceValueOnEnter);
+elements.uiZoomValue.addEventListener("change", () => commitAppearanceValue("uiZoom", elements.uiZoomInput, elements.uiZoomValue, 50, 160));
+elements.uiZoomValue.addEventListener("keydown", commitAppearanceValueOnEnter);
 elements.appearanceResetButton.addEventListener("click", resetAppearance);
 elements.loginDialog.addEventListener("close", () => {
   stopLoginPolling();
