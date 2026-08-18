@@ -17,13 +17,25 @@ Community-maintained native fnOS packages containing the official Tailscale
 ${TAILSCALE_VERSION} stable Linux binaries and an original fnOS management
 interface.
 
-## fnos.0.4 features
+## Version and architectures
+
+- fnOS community integration: \`fnos.${FNOS_PACKAGE_REVISION}\` (test release)
+- Complete FPK version: \`${package_version}\`
+- GitHub Release tag: \`v${package_version}\`
+- \`x86\`: for x86_64/amd64 fnOS systems
+- \`arm\`: for arm64/aarch64 fnOS systems
+
+No 32-bit ARM package is currently produced. \`upstream.lock\` records the
+Tailscale version, amd64 and arm64 SHA-256 digests, fnOS package revision, and
+the pinned \`fnpack\` tool digest used for this release.
+
+## fnos.${FNOS_PACKAGE_REVISION} features
 
 - Original Chinese dashboard; does not use the upstream CGI web interface
 - Connect/disconnect, account logout, and automatic browser or Auth Key login
 - Overview, Devices, and Settings pages with responsive navigation
 - OS-aware original SVG device icons, search, online filtering, and pagination
-- Rebased display defaults with 70-160% font and 50-160% interface-zoom controls
+- Stable 70-160% font and 50-160% interface-zoom controls with editable values
 - Tailnet device list and online-device count
 - On-demand DERP latency measurement
 - Local hostname and Exit Node advertisement controls
@@ -31,11 +43,6 @@ interface.
 
 This is a test build. Complete the clean-VM acceptance checklist before making
 the GitHub Release public or submitting it to the fnOS application center.
-
-## Packages
-
-- \`x86\`: for x86_64/amd64 fnOS systems
-- \`arm\`: for arm64/aarch64 fnOS systems
 
 Install through fnOS App Center's manual-install function for testing. Public
 distribution should use the fnOS application-center review process.
