@@ -1,4 +1,4 @@
-name: Build draft release
+name: Build fnOS release
 
 on:
   push:
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish the tested release instead of leaving it as a draft
+        description: Publish the release after a successful manual build
         required: false
         default: false
         type: boolean
@@ -63,8 +63,14 @@ jobs:
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
+            if gh release view "$TAG" --json isDraft --jq '.isDraft' | grep -q '^true$'; then
+              echo "draft=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "draft=false" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "draft=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Validate and build
@@ -99,7 +105,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release.outputs.tag }}
           PACKAGE_VERSION: ${{ steps.release.outputs.package_version }}
-          PUBLISH: ${{ inputs.publish || false }}
+          PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
         shell: bash
         run: |
           release_state=(--draft)
@@ -116,7 +122,7 @@ jobs:
             dist/provenance.json
 
       - name: Publish an existing tested draft
-        if: steps.existing.outputs.exists == 'true' && inputs.publish == true
+        if: steps.existing.outputs.draft == 'true' && (github.event_name == 'push' || inputs.publish == true)
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release.outputs.tag }}

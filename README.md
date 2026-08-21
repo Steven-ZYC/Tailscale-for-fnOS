@@ -82,10 +82,10 @@ GitHub Actions 中的 `Track Tailscale stable releases` 每天在 UTC 01:17
 
 两个来源确认同一个新版本后，工作流会更新官方摘要、构建并验证两个 FPK，
 然后创建升级 Pull Request。已有更新分支但缺少 PR 时，后续运行会刷新该分支并
-再次创建 PR，不会再直接退出。升级合并到 `main` 后，发布工作流会重新构建并将
-FPK 保存为保留 30 天的 Actions artifact，同时创建一个 **GitHub 草稿 Release**。
-只有在纯净虚拟机测试通过后，才应在 `Build draft release` 的手动运行页面勾选
-`publish` 将对应草稿公开；只有公开 Release 才会被 fnOS 端的版本检测看到。
+再次创建 PR，不会再直接退出。经过本地验证的版本直接推送或合并到 `main` 后，
+`Build fnOS release` 会再次完整校验和构建，将 FPK 保存为保留 30 天的 Actions
+artifact，并自动公开对应的 GitHub Release，因此 fnOS 端可以立即检测到它。
+如需仅生成草稿，可手动运行该工作流并保持 `publish` 未勾选。
 
 Tailscale Admin Console 只能管理节点及显示客户端版本，不能完整升级本项目的
 FPK、Go 管理界面、manifest 或 fnOS 生命周期脚本。请勿将其中的远程更新或

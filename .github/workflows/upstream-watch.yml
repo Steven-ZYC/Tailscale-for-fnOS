@@ -84,7 +84,12 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
           git add -- upstream.lock
-          git commit -m "chore: update Tailscale to v${LATEST}"
+          # Keep the automation identity as the committer for auditability, but
+          # attribute the authored repository change to the project maintainer.
+          # GitHub's Contributors view counts authors, not committers.
+          git commit \
+            --author="Steven-ZYC <60809224+Steven-ZYC@users.noreply.github.com>" \
+            -m "chore: update Tailscale to v${LATEST}"
 
           remote_sha="$(git ls-remote --heads origin "refs/heads/${branch}" | awk '{print $1}')"
           if [ -n "$remote_sha" ]; then

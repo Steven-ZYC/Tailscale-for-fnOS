@@ -88,10 +88,11 @@ automatically after recovery. Each run cross-checks:
 When both sources agree on a newer version, the workflow refreshes official
 digests, builds both FPK packages, and opens an update pull request. If a branch
 was left behind without a PR, a later run refreshes it and retries PR creation.
-Merging the update to `main` rebuilds the packages, stores a 30-day Actions
-artifact, and creates a **draft GitHub Release**. After the clean-VM test gate
-passes, manually run `Build draft release` with `publish` selected. Only a public
-Release is visible to the update check running on fnOS.
+Pushing or merging a locally validated update to `main` runs `Build fnOS release`,
+rebuilds both packages, stores a 30-day Actions artifact, and automatically
+publishes the corresponding GitHub Release so fnOS can detect it immediately.
+To create a draft instead, dispatch the workflow manually with `publish` left
+unselected.
 
 Tailscale Admin Console can manage the node and display its client version, but
 it cannot upgrade this project's complete FPK, Go management UI, manifest, or
