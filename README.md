@@ -40,10 +40,14 @@ FPK 完整版本及正式 GitHub 发布标签采用
   将此前字体 120% 与界面缩放 80% 重新定义为新默认 100%，v0.5 增加可键入的
   百分比输入框，并在拖动或输入完成后再应用缩放以避免滑块跳变；显示偏好只
   保存在当前浏览器，不写入 Tailscale 状态；
-- 通过 GitHub Releases 检测 FPK 新版本，只提示下载，不在 NAS 上自行更新；
+- 每次打开管理页面时自动通过 GitHub Releases 检测 FPK 新版本，也可在设置页
+  手动重查；检测只提示下载，不在 NAS 上自行安装；
 - 不执行 `tailscale update`，所有升级只通过新的 FPK 交付；
 - 不支持通过 Tailscale Admin Console 的远程更新或自动更新功能升级本应用；
   请从本项目的 GitHub Releases 手动下载新版 FPK，或通过飞牛应用商店更新；
+- 在 fnOS 中直接安装更高版本的同名 FPK 会走覆盖升级流程：旧进程先停止，
+  应用文件被替换，`TRIM_PKGVAR/state` 中的节点身份、密钥与偏好会保留，升级后
+  继续复用原节点。不要用较低版本覆盖较高版本；重要设备升级前仍建议备份应用数据；
 - 卸载生命周期脚本不会静默删除已保存的节点身份。
 
 ## 实现边界
@@ -68,23 +72,29 @@ sudo ./scripts/device-smoke-test.sh /path/to/tailscale-fnos_VERSION_x86.fpk
 ## 自动跟踪上游更新
 
 GitHub Actions 中的 `Track Tailscale stable releases` 每天在 UTC 01:17
-（北京时间/香港时间 09:17）运行，
-同时核对：
+（北京时间/香港时间 09:17）运行；UTC 04:17（12:17）会执行一次幂等的
+三小时后重试。首次检查正常时，重试只会快速确认无需更新。工作流失败时会创建
+或更新一个 `[automation] Tailscale stable update failed` Issue，恢复后自动关闭。
+每次检查都会同时核对：
 
 - `tailscale/tailscale` 最新正式 Release；
 - Tailscale stable 软件源中的 Linux amd64 软件包。
 
 两个来源确认同一个新版本后，工作流会更新官方摘要、构建并验证两个 FPK，
-然后创建升级 Pull Request。升级合并到 `main` 后，发布工作流会创建一个
-**GitHub 草稿 Release**。只有在纯净虚拟机测试通过后才应手动公开发布。
+然后创建升级 Pull Request。已有更新分支但缺少 PR 时，后续运行会刷新该分支并
+再次创建 PR，不会再直接退出。升级合并到 `main` 后，发布工作流会重新构建并将
+FPK 保存为保留 30 天的 Actions artifact，同时创建一个 **GitHub 草稿 Release**。
+只有在纯净虚拟机测试通过后，才应在 `Build draft release` 的手动运行页面勾选
+`publish` 将对应草稿公开；只有公开 Release 才会被 fnOS 端的版本检测看到。
 
 Tailscale Admin Console 只能管理节点及显示客户端版本，不能完整升级本项目的
 FPK、Go 管理界面、manifest 或 fnOS 生命周期脚本。请勿将其中的远程更新或
 自动更新作为本应用的升级渠道；用户应安装 GitHub Releases 或飞牛应用商店
 提供的完整新版 FPK。
 
-需要在 GitHub 仓库设置中允许 GitHub Actions 创建 Pull Request。若未开启，
-工作流仍能验证候选版本，但无法自动创建 PR。
+需要在 GitHub 仓库的 `Settings → Actions → General → Workflow permissions`
+中勾选 `Allow GitHub Actions to create and approve pull requests`。若未开启，
+工作流仍能验证候选版本并记录故障，但无法自动创建 PR。
 
 ## 安全注意事项
 

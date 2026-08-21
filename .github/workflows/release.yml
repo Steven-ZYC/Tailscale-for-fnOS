@@ -12,6 +12,12 @@ on:
       - scripts/**
       - .github/workflows/release.yml
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the tested release instead of leaving it as a draft
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -62,12 +68,23 @@ jobs:
           fi
 
       - name: Validate and build
-        if: steps.existing.outputs.exists != 'true'
         run: |
           ./scripts/validate.sh
           ./scripts/install-fnpack.sh
           ./scripts/build-all.sh
           ./scripts/create-release-notes.sh
+
+      - name: Upload FPK workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tailscale-fnos-${{ steps.release.outputs.package_version }}
+          path: |
+            dist/*.fpk
+            dist/SHA256SUMS
+            dist/provenance.json
+            dist/RELEASE_NOTES.md
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Attest FPK build provenance
         if: steps.existing.outputs.exists != 'true'
@@ -76,19 +93,31 @@ jobs:
         with:
           subject-path: dist/*.fpk
 
-      - name: Create draft GitHub release
+      - name: Create GitHub release
         if: steps.existing.outputs.exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release.outputs.tag }}
           PACKAGE_VERSION: ${{ steps.release.outputs.package_version }}
+          PUBLISH: ${{ inputs.publish || false }}
         shell: bash
         run: |
+          release_state=(--draft)
+          if [ "$PUBLISH" = "true" ]; then
+            release_state=()
+          fi
           gh release create "$TAG" \
-            --draft \
+            "${release_state[@]}" \
             --target "$GITHUB_SHA" \
             --title "Tailscale for fnOS ${PACKAGE_VERSION}" \
             --notes-file dist/RELEASE_NOTES.md \
             dist/*.fpk \
             dist/SHA256SUMS \
             dist/provenance.json
+
+      - name: Publish an existing tested draft
+        if: steps.existing.outputs.exists == 'true' && inputs.publish == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false

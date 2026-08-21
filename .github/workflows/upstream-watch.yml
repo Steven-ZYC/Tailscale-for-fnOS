@@ -3,10 +3,15 @@ name: Track Tailscale stable releases
 on:
   schedule:
     - cron: "17 1 * * *"
+    # Retry the same idempotent check three hours after the primary run. When
+    # the primary succeeds this is a cheap no-op; when it fails this recovers
+    # without keeping a runner asleep for three hours.
+    - cron: "17 4 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
 
 concurrency:
@@ -55,7 +60,7 @@ jobs:
           ./scripts/install-fnpack.sh
           ./scripts/build-all.sh
 
-      - name: Open an update pull request
+      - name: Open or refresh an update pull request
         if: steps.version.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,8 +68,15 @@ jobs:
         shell: bash
         run: |
           branch="automation/tailscale-v${LATEST}"
-          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
-            echo "Update branch already exists: $branch"
+
+          existing_pr="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --head "$branch" \
+            --json url \
+            --jq '.[0].url // ""')"
+          if [ -n "$existing_pr" ]; then
+            echo "Update pull request already exists: $existing_pr"
             exit 0
           fi
 
@@ -73,14 +85,75 @@ jobs:
           git switch -c "$branch"
           git add -- upstream.lock
           git commit -m "chore: update Tailscale to v${LATEST}"
-          git push origin "$branch"
+
+          remote_sha="$(git ls-remote --heads origin "refs/heads/${branch}" | awk '{print $1}')"
+          if [ -n "$remote_sha" ]; then
+            echo "Refreshing update branch left by an earlier failed run: $branch"
+            git push \
+              --force-with-lease="refs/heads/${branch}:${remote_sha}" \
+              origin "HEAD:refs/heads/${branch}"
+          else
+            git push --set-upstream origin "$branch"
+          fi
+
           gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
             --base main \
             --head "$branch" \
             --title "chore: update Tailscale to v${LATEST}" \
             --body "Automated stable-channel update. Official amd64 and arm64 checksums were refreshed, and both FPK packages built successfully before this pull request was opened."
 
       - name: Report current status
+        if: always()
         run: |
+          echo "Run:     ${{ github.event.schedule == '17 4 * * *' && 'three-hour retry' || 'primary/manual check' }}"
           echo "Current: ${{ steps.version.outputs.current }}"
           echo "Latest:  ${{ steps.version.outputs.latest }}"
+
+      - name: Close a recovered automation incident
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          issue_number="$(gh issue list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --search '"[automation] Tailscale stable update failed" in:title' \
+            --json number,title \
+            --jq '.[] | select(.title == "[automation] Tailscale stable update failed") | .number' \
+            | head -n 1)"
+          if [ -n "$issue_number" ]; then
+            gh issue close "$issue_number" \
+              --repo "$GITHUB_REPOSITORY" \
+              --comment "Recovered in ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
+          fi
+
+      - name: Record an automation incident
+        if: failure()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_KIND: ${{ github.event.schedule == '17 4 * * *' && 'three-hour retry' || 'primary/manual check' }}
+        shell: bash
+        run: |
+          title="[automation] Tailscale stable update failed"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          body="The ${RUN_KIND} failed at $(date -u +'%Y-%m-%d %H:%M:%S UTC').
+
+          Full error log: ${run_url}
+
+          The scheduled primary run is followed by an idempotent retry three hours later. If this was already the retry, maintainer action is required."
+          issue_number="$(gh issue list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --search "\"${title}\" in:title" \
+            --json number,title \
+            --jq '.[] | select(.title == "[automation] Tailscale stable update failed") | .number' \
+            | head -n 1)"
+          if [ -n "$issue_number" ]; then
+            gh issue comment "$issue_number" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          fi
