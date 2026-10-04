@@ -59,6 +59,7 @@ if command -v node >/dev/null 2>&1; then
 fi
 
 require_command python3
+python3 "${PROJECT_ROOT}/scripts/test-detect-upstream.py"
 python3 - "${PROJECT_ROOT}" <<'PY'
 import json
 import struct
