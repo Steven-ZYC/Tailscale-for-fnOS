@@ -7,37 +7,47 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
 
 require_command curl
-require_command grep
+require_command python3
 load_lock
 
 mode="${1:---version-only}"
 
-github_release_url="$(curl --proto '=https' --tlsv1.2 --retry 3 --retry-all-errors \
-  -fsSL -o /dev/null -w '%{url_effective}' \
-  https://github.com/tailscale/tailscale/releases/latest)"
-github_version="${github_release_url##*/v}"
-validate_version "$github_version"
+# GitHub's latest release may only update containers or another platform.
+# Track the official Linux static packages that are actually bundled here.
+package_index="$(curl --proto '=https' --tlsv1.2 --retry 3 --retry-all-errors \
+  -fsSL "https://pkgs.tailscale.com/${TAILSCALE_TRACK}/?mode=json&os=linux")"
+package_version="$(printf '%s' "$package_index" | python3 -c '
+import json
+import sys
 
-package_version="$(curl --proto '=https' --tlsv1.2 --retry 3 --retry-all-errors \
-  -fsSL "https://pkgs.tailscale.com/${TAILSCALE_TRACK}/" \
-  | grep -oE 'tailscale_[0-9]+\.[0-9]+\.[0-9]+_amd64\.tgz' \
-  | head -n 1 \
-  | sed -E 's/^tailscale_([0-9]+\.[0-9]+\.[0-9]+)_amd64\.tgz$/\1/')"
+try:
+    metadata = json.load(sys.stdin)
+    version = metadata.get("TarballsVersion")
+    tarballs = metadata.get("Tarballs")
+    if not isinstance(version, str) or not version or not isinstance(tarballs, dict):
+        raise ValueError("missing TarballsVersion or Tarballs")
+    for arch in ("amd64", "arm64"):
+        expected = f"tailscale_{version}_{arch}.tgz"
+        if tarballs.get(arch) != expected:
+            raise ValueError(f"{arch} static package does not match {version}")
+except (ValueError, AttributeError) as error:
+    print(f"error: invalid official Linux package index: {error}", file=sys.stderr)
+    sys.exit(1)
+
+print(version)
+')"
 validate_version "$package_version"
-
-[ "$github_version" = "$package_version" ] || die \
-  "GitHub latest (${github_version}) and official stable package (${package_version}) are not synchronized"
 
 case "$mode" in
   --version-only)
-    printf '%s\n' "$github_version"
+    printf '%s\n' "$package_version"
     ;;
   --check-lock)
-    if [ "$github_version" = "$TAILSCALE_VERSION" ]; then
+    if [ "$package_version" = "$TAILSCALE_VERSION" ]; then
       printf 'up-to-date: %s\n' "$TAILSCALE_VERSION"
       exit 0
     fi
-    printf 'update-available: current=%s latest=%s\n' "$TAILSCALE_VERSION" "$github_version"
+    printf 'update-available: current=%s latest=%s\n' "$TAILSCALE_VERSION" "$package_version"
     exit 10
     ;;
   *)
