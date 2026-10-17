@@ -1,5 +1,7 @@
 #!/bin/bash
 
-# fnOS normally stops a running application before replacing its files. Keep
-# this hook intentionally non-destructive so TRIM_PKGVAR/state always survives.
-exit 0
+# Stop through the lifecycle controller even if fnOS's cached status says
+# "stopped". The controller can recover a missing PID without touching state.
+# Abort the upgrade if the old daemon cannot be stopped safely.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+exec bash "${SCRIPT_DIR}/main" stop

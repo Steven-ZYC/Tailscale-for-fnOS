@@ -39,37 +39,105 @@ prepare_directories() {
 read_pid() {
   [ -f "$PID_FILE" ] || return 1
   local pid
-  pid="$(head -n 1 "$PID_FILE" 2>/dev/null | tr -cd '0-9')"
-  [ -n "$pid" ] || return 1
+  pid="$(head -n 1 "$PID_FILE" 2>/dev/null)"
+  [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 1
   printf '%s' "$pid"
 }
 
 is_our_process() {
   local pid="$1"
+  [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 1
   kill -0 "$pid" 2>/dev/null || return 1
 
-  if [ -e "/proc/${pid}/exe" ]; then
-    local process_exe
-    process_exe="$(readlink -f "/proc/${pid}/exe" 2>/dev/null || true)"
-    [ "$process_exe" = "$(readlink -f "$TAILSCALED_BIN" 2>/dev/null || true)" ] || return 1
-  fi
+  # Never trust a cached PID or a process name alone. Match the executable,
+  # owner, and package-specific arguments before adopting or stopping it.
+  local process_exe expected_exe process_owner argument
+  process_owner="$(stat -c '%u' "/proc/${pid}" 2>/dev/null)" || return 1
+  [ "$process_owner" = "$(id -u)" ] || return 1
+  process_exe="$(readlink "/proc/${pid}/exe" 2>/dev/null)" || return 1
+  # An upgrade can replace the file while the previous executable is alive.
+  process_exe="${process_exe% (deleted)}"
+  expected_exe="$(readlink -f "$TAILSCALED_BIN" 2>/dev/null)" || return 1
+  [ -n "$expected_exe" ] && [ "$process_exe" = "$expected_exe" ] || return 1
+
+  local process_state="" process_socket="" process_tun=""
+  while IFS= read -r -d '' argument; do
+    case "$argument" in
+      --statedir=*) process_state="${argument#--statedir=}" ;;
+      --socket=*) process_socket="${argument#--socket=}" ;;
+      --tun=*) process_tun="${argument#--tun=}" ;;
+    esac
+  done < "/proc/${pid}/cmdline"
+  [ -n "$process_state" ] && [ -n "$process_socket" ] || return 1
+  [ "$process_tun" = "tailscale0" ] || return 1
+
+  local expected_state expected_socket
+  expected_state="$(readlink -m "$STATE_DIR")" || return 1
+  expected_socket="$(readlink -m "$SOCKET_PATH")" || return 1
+  process_state="$(readlink -m "$process_state")" || return 1
+  process_socket="$(readlink -m "$process_socket")" || return 1
+  [ "$process_state" = "$expected_state" ] || return 1
+  [ "$process_socket" = "$expected_socket" ] || return 1
 
   return 0
 }
 
-status_app() {
-  local pid
-  pid="$(read_pid)" || {
-    rm -f "$PID_FILE"
-    return 1
-  }
-
-  if is_our_process "$pid"; then
+find_our_pid() {
+  local pid candidates found=""
+  pid="$(read_pid)" || pid=""
+  if [ -n "$pid" ] && is_our_process "$pid"; then
+    printf '%s' "$pid"
     return 0
   fi
 
-  rm -f "$PID_FILE"
-  return 1
+  if command -v pgrep >/dev/null 2>&1; then
+    candidates="$(pgrep -x tailscaled 2>/dev/null || true)"
+  elif command -v pidof >/dev/null 2>&1; then
+    candidates="$(pidof tailscaled 2>/dev/null || true)"
+  else
+    return 2
+  fi
+  for pid in $candidates; do
+    is_our_process "$pid" || continue
+    if [ -n "$found" ]; then
+      write_user_error "Multiple daemons match this package; refusing to guess which process to manage."
+      return 2
+    fi
+    found="$pid"
+  done
+  [ -n "$found" ] || return 1
+  printf '%s' "$found"
+}
+
+save_pid() {
+  local pid="$1" temporary_pid
+  mkdir -p "$PKG_TMP" || return 1
+  chmod 0700 "$PKG_TMP" || return 1
+  temporary_pid="$(mktemp "${PID_FILE}.XXXXXX")" || return 1
+  if ! printf '%s\n' "$pid" > "$temporary_pid" ||
+     ! chmod 0600 "$temporary_pid" ||
+     ! mv -f "$temporary_pid" "$PID_FILE"; then
+    rm -f "$temporary_pid"
+    return 1
+  fi
+}
+
+status_app() {
+  local pid
+  pid="$(find_our_pid)" || {
+    local discovery_status=$?
+    if [ "$discovery_status" -eq 2 ]; then
+      write_user_error "Unable to identify one package daemon safely; runtime files were left intact."
+      return 1
+    fi
+    rm -f "$PID_FILE"
+    return 1
+  }
+  if [ "$(read_pid 2>/dev/null || true)" != "$pid" ]; then
+    save_pid "$pid" || return 1
+    log_message "Recovered PID tracking for existing package daemon ${pid}."
+  fi
+  return 0
 }
 
 any_tailscaled_running() {
@@ -117,6 +185,11 @@ restore_exit_node_forwarding() {
 
 start_app() {
   if status_app; then
+    if [ ! -S "$SOCKET_PATH" ]; then
+      write_user_error "The package daemon is running, but its management socket is missing. Use a local/LAN connection to stop and start this application; restarting can interrupt Tailscale connectivity."
+      return 1
+    fi
+    chmod 0600 "$SOCKET_PATH" 2>/dev/null || true
     return 0
   fi
 
@@ -151,8 +224,11 @@ start_app() {
     --port=0 >> "$LOG_FILE" 2>&1 &
 
   local pid=$!
-  printf '%s\n' "$pid" > "$PID_FILE"
-  chmod 0600 "$PID_FILE" 2>/dev/null || true
+  if ! save_pid "$pid"; then
+    kill -TERM "$pid" 2>/dev/null || true
+    write_user_error "Unable to save the Tailscale PID file."
+    return 1
+  fi
 
   local attempt=0
   while [ "$attempt" -lt 15 ]; do
@@ -186,9 +262,15 @@ cleanup_network_state() {
 
 stop_app() {
   local pid
-  pid="$(read_pid)" || {
-    rm -f "$PID_FILE" "$SOCKET_PATH"
+  pid="$(find_our_pid)" || {
+    local discovery_status=$?
+    if [ "$discovery_status" -eq 2 ]; then
+      write_user_error "Unable to identify one package daemon safely; runtime files were left intact."
+      return 1
+    fi
+    rm -f "$PID_FILE"
     if [ -x "$TAILSCALED_BIN" ] && ! any_tailscaled_running; then
+      rm -f "$SOCKET_PATH"
       cleanup_network_state
     else
       log_message "Skipped orphan network cleanup because another tailscaled process may be running."
@@ -197,8 +279,9 @@ stop_app() {
   }
 
   if ! is_our_process "$pid"; then
-    rm -f "$PID_FILE" "$SOCKET_PATH"
+    rm -f "$PID_FILE"
     if ! any_tailscaled_running; then
+      rm -f "$SOCKET_PATH"
       cleanup_network_state
     else
       log_message "Skipped stale-PID cleanup because another tailscaled process may be running."
@@ -218,10 +301,21 @@ stop_app() {
   if is_our_process "$pid"; then
     log_message "tailscaled did not stop after 15 seconds; sending KILL."
     kill -KILL "$pid" 2>/dev/null || true
+    attempt=0
+    while is_our_process "$pid" && [ "$attempt" -lt 5 ]; do
+      sleep 1
+      attempt=$((attempt + 1))
+    done
+    if is_our_process "$pid"; then
+      write_user_error "The package daemon could not be stopped; its runtime files were left intact."
+      return 1
+    fi
   fi
 
   rm -f "$PID_FILE" "$SOCKET_PATH"
-  cleanup_network_state
+  if ! any_tailscaled_running; then
+    cleanup_network_state
+  fi
   return 0
 }
 
