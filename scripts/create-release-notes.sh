@@ -31,6 +31,8 @@ the pinned \`fnpack\` tool digest used for this release.
 
 ## fnos.${FNOS_PACKAGE_REVISION} features
 
+- Recover a missing PID file by verifying the existing package daemon; upgrades
+  stop the owned daemon before replacing files and preserve live runtime records
 - Original Chinese dashboard; does not use the upstream CGI web interface
 - Connect/disconnect, account logout, and automatic browser or Auth Key login
 - Overview, Devices, and Settings pages with responsive navigation

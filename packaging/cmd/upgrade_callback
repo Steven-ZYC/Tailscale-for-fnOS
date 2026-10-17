@@ -5,6 +5,7 @@ umask 077
 
 mkdir -p "${TRIM_PKGVAR}/state" "${TRIM_PKGVAR}/log" "${TRIM_PKGTMP}"
 chmod 0700 "${TRIM_PKGVAR}/state" "${TRIM_PKGVAR}/log" "${TRIM_PKGTMP}" 2>/dev/null || true
-rm -f "${TRIM_PKGTMP}/tailscaled.pid" "${TRIM_PKGTMP}/tailscaled.sock"
+# Runtime files belong to the daemon and lifecycle controller. Never unlink a
+# live daemon's PID/socket here: that leaves it online but invisible to fnOS.
 
 exit 0
