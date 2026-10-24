@@ -11,9 +11,9 @@
 **[⬇️ 下载最新 FPK](https://github.com/Steven-ZYC/Tailscale-for-fnOS/releases/latest)** · **[📖 快速安装](#快速安装)** · **[✨ 功能介绍](#主要功能)** · **[🐛 反馈问题](https://github.com/Steven-ZYC/Tailscale-for-fnOS/issues)**
 
 > [!IMPORTANT]
->  请确保系统提供 `/dev/net/tun`，并且**没有另一套 Tailscale 正在运行**。若存在其他 `tailscaled` 进程或 `tailscale0` 接口，本应用会为避免冲突而拒绝启动。
->  当前公开版本仍属于测试构建。
->  此项目由社区独立维护，**与 Tailscale Inc. 或飞牛 fnOS 官方均无隶属或背书关系**。Tailscale 是 Tailscale Inc. 的注册商标。
+>  - 请确保系统**没有另一套 Tailscale 正在运行**。若存在其他 `tailscaled` 进程或 `tailscale0` 接口，本应用会为避免冲突而拒绝启动。
+>  - 当前公开版本仍属于测试构建。
+>  - 此项目由社区独立维护，**与 Tailscale Inc. 或飞牛 fnOS 官方均无隶属或背书关系**。Tailscale 是 Tailscale Inc. 的注册商标。
 
 ## 为什么使用这个版本？
 
