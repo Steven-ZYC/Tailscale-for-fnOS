@@ -153,13 +153,19 @@ GitHub Actions 中的 `Track Tailscale stable releases` 每天在 UTC 01:17
 （北京时间/香港时间 09:17）运行；UTC 04:17（12:17）会执行一次幂等的
 三小时后重试。首次检查正常时，重试只会快速确认无需更新。工作流失败时会创建
 或更新一个 `[automation] Tailscale stable update failed` Issue，恢复后自动关闭。
-每次检查都会同时核对：
+每次检查都会读取 Tailscale 官方 stable 软件源的 Linux 静态包索引，以
+`TarballsVersion` 为候选版本，并同时核对该索引中的：
 
-- `tailscale/tailscale` 最新正式 Release；
-- Tailscale stable 软件源中的 Linux amd64 软件包。
+- amd64 条目是否指向 `tailscale_<版本>_amd64.tgz`；
+- arm64 条目是否指向 `tailscale_<版本>_arm64.tgz`。
 
-两个来源确认同一个新版本后，工作流会更新官方摘要、构建并验证两个 FPK，
-然后创建升级 Pull Request。已有更新分支但缺少 PR 时，后续运行会刷新该分支并
+GitHub Release 可能仅针对容器或其他平台更新，因此不作为 Linux 静态包版本的
+判定依据。请求失败、索引数据缺失、版本格式无效或任一架构条目不匹配时，检查
+会失败并进入上述故障报告流程，不会误报为无需更新。
+
+两种架构的索引条目均匹配同一有效版本且与 `upstream.lock` 的当前版本不同后，
+工作流会更新两个架构的官方 SHA-256 摘要，构建并验证两个 FPK，再创建升级
+Pull Request。已有更新分支但缺少 PR 时，后续运行会刷新该分支并
 再次创建 PR，不会再直接退出。经过本地验证的版本直接推送或合并到 `main` 后，
 `Build fnOS release` 会再次完整校验和构建，将 FPK 保存为保留 30 天的 Actions
 artifact，并自动公开对应的 GitHub Release，因此 fnOS 端可以立即检测到它。

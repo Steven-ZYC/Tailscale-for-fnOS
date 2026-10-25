@@ -153,13 +153,21 @@ The `Track Tailscale stable releases` GitHub Actions workflow runs daily at UTC 
 (09:17 Beijing/Hong Kong time); an idempotent retry runs three hours later
 at UTC 04:17 (12:17). When the first check succeeds, the retry only performs a quick confirmation that no update is needed. If the workflow fails, it creates
 or updates an Issue titled `[automation] Tailscale stable update failed`, which is automatically closed after recovery.
-Each check verifies both of the following:
+Each check reads the official Tailscale stable repository's Linux static-package index,
+uses `TarballsVersion` as the candidate version, and checks both entries in that index:
 
-- The latest formal Release from `tailscale/tailscale`;
-- The Linux amd64 package in the Tailscale stable package repository.
+- The amd64 entry must point to `tailscale_<version>_amd64.tgz`;
+- The arm64 entry must point to `tailscale_<version>_arm64.tgz`.
 
-Once both sources confirm the same new version, the workflow updates the official checksums, builds and verifies both FPKs,
-and then creates an upgrade Pull Request. If an update branch already exists but has no PR, subsequent runs refresh that branch and
+GitHub Releases may update only containers or other platforms, so they are not used to
+determine the Linux static-package version. A failed request, missing index data, an invalid
+version format, or a mismatched entry for either architecture causes the check to fail and
+enter the incident-reporting flow described above; it is not reported as no update needed.
+
+If both architecture entries match the same valid version and it differs from the current
+version in `upstream.lock`, the workflow refreshes both architectures' official SHA-256 checksums,
+builds and verifies both FPKs, and then creates an upgrade Pull Request.
+If an update branch already exists but has no PR, subsequent runs refresh that branch and
 try to create the PR again instead of exiting immediately. After a locally validated version is pushed directly or merged into `main`,
 `Build fnOS release` performs full validation and builds again, saves the FPKs as Actions artifacts
 retained for 30 days, and automatically publishes the corresponding GitHub Release so that fnOS can detect it immediately.
