@@ -1,5 +1,7 @@
 * text=auto
 *.sh text eol=lf
+upstream.lock text eol=lf
+packaging/cmd/* text eol=lf
 manifest.template text eol=lf
 config text eol=lf
 index.cgi text eol=lf

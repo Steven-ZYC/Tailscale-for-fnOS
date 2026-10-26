@@ -10,22 +10,37 @@ const elements = Object.fromEntries([
   "fontScaleValue", "uiZoomInput", "uiZoomValue", "appearanceResetButton", "accountDeviceName",
   "accountTailnet", "accountIP", "logoutButton", "updateButton", "updateDescription",
   "releaseLink", "loginDialog", "browserTab", "keyTab", "browserPane", "keyPane",
-  "browserLoginButton", "authLink", "authKeyInput", "keyLoginButton", "toastRegion"
+  "browserLoginButton", "authLink", "authKeyInput", "keyLoginButton", "toastRegion",
+  "breadcrumbTitle", "sidebarStatus", "sidebarDeviceName", "copyIPButton", "ipCopyLabel",
+  "lastUpdated", "tailscaleVersion", "latencyRegion", "overviewExitStatus",
+  "overviewExitDescription", "openExitSettings", "healthPanel", "healthList",
+  "exitNodeState", "exitConnectionState", "exitAdvertiseState", "exitIPv4State",
+  "exitIPv6State", "exitApprovalState", "settingsVersion", "exitDiagnostics",
+  "connectionCard", "overviewSettingsButton"
 ].map((id) => [id, document.getElementById(id)]));
 
 const APPEARANCE_KEY = "tailscale-fnos-appearance-v2";
 const LEGACY_APPEARANCE_KEY = "tailscale-fnos-appearance-v1";
 const DEFAULT_APPEARANCE = Object.freeze({ fontScale: 100, uiZoom: 100 });
 const validPages = new Set(["overview", "devices", "settings"]);
+const settingsTabs = ["network", "appearance", "account", "about"];
 
 const appState = {
   status: null,
   devices: [],
   refreshing: false,
+  refreshPromise: null,
+  statusEpoch: 0,
+  connectionBusy: false,
+  exitNodeBusy: false,
+  hostnameDirty: false,
+  hostnameBusy: false,
   latencyMeasured: false,
   statusTimer: null,
   loginTimer: null,
   currentPage: "overview",
+  currentSettingsTab: "network",
+  exitNeedsAttention: false,
   deviceFilter: "all",
   devicePage: 1,
   devicePageSize: 8,
@@ -98,6 +113,7 @@ function backendLabel(state) {
 function navigate(page, updateHash = true) {
   const target = validPages.has(page) ? page : "overview";
   appState.currentPage = target;
+  elements.breadcrumbTitle.textContent = ({ overview: "概览", devices: "网络设备", settings: "设置" })[target];
   document.querySelectorAll("[data-page-panel]").forEach((panel) => {
     const active = panel.dataset.pagePanel === target;
     panel.hidden = !active;
@@ -114,6 +130,21 @@ function navigate(page, updateHash = true) {
   }
   if (target === "devices") renderDevices();
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function selectSettingsTab(name, focus = false) {
+  const target = settingsTabs.includes(name) ? name : "network";
+  appState.currentSettingsTab = target;
+  document.querySelectorAll("[data-settings-tab]").forEach((tab) => {
+    const active = tab.dataset.settingsTab === target;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", String(active));
+    tab.setAttribute("tabindex", active ? "0" : "-1");
+    if (active && focus) tab.focus();
+  });
+  document.querySelectorAll("[data-settings-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.settingsPanel !== target;
+  });
 }
 
 function osDescriptor(device) {
@@ -143,14 +174,14 @@ function osIcon(kind) {
 }
 
 function connectionDescriptor(device) {
-  const kind = ["direct", "relay", "offline", "idle"].includes(device.connection)
+  const kind = !device.online ? "offline" : ["direct", "relay", "offline", "idle"].includes(device.connection)
     ? device.connection
     : "idle";
   const label = kind === "direct"
     ? "直连"
     : kind === "relay"
-      ? `DERP ${device.relay || ""}`.trim()
-      : kind === "offline" ? "离线" : "空闲";
+      ? "DERP 中继"
+      : kind === "offline" ? "未连接" : device.self ? "本机节点" : "等待连接";
   return { kind, label };
 }
 
@@ -159,18 +190,16 @@ function deviceCard(device, compact = false) {
   const connection = connectionDescriptor(device);
   const address = device.ips?.[0] || "—";
   return `<article class="device-card ${compact ? "compact-card" : ""}">
-    <div class="os-icon ${system.kind}">${osIcon(system.kind)}</div>
+    <div class="device-identity"><div class="os-icon ${system.kind}">${osIcon(system.kind)}</div>
     <div class="device-card-copy">
       <div class="device-card-heading">
-        <strong>${escapeHTML(device.name || "未命名设备")}</strong>
+        <strong title="${escapeHTML(device.name || "未命名设备")}">${escapeHTML(device.name || "未命名设备")}</strong>
         ${device.self ? '<span class="self-tag">本机</span>' : ""}
       </div>
       <p>${escapeHTML(system.label)}${device.exit_node_option ? " · Exit Node" : ""}</p>
-      <div class="device-card-details">
-        <span class="mono">${escapeHTML(address)}</span>
-        <span class="connection-badge ${connection.kind}">${escapeHTML(connection.label)}</span>
-      </div>
-    </div>
+    </div></div>
+    <div class="device-address mono">${escapeHTML(address)}</div>
+    <div class="device-route"><span class="connection-badge ${connection.kind}">${escapeHTML(connection.label)}</span><small>${device.relay ? `${device.online ? "DERP" : "上次 DERP"} · ${escapeHTML(device.relay)}` : device.self ? "本机网络" : "暂无 DERP 信息"}</small></div>
     <span class="device-online-indicator ${device.online ? "online" : ""}" title="${device.online ? "在线" : "离线"}"><span></span>${device.online ? "在线" : "离线"}</span>
   </article>`;
 }
@@ -186,7 +215,7 @@ function filteredDevices() {
 }
 
 function renderDevices() {
-  const preview = appState.devices.slice(0, 4);
+  const preview = appState.devices.slice(0, 5);
   elements.overviewDeviceCards.innerHTML = preview.length
     ? preview.map((device) => deviceCard(device, true)).join("")
     : '<div class="empty-state">暂无可显示的设备</div>';
@@ -205,45 +234,102 @@ function renderDevices() {
   elements.devicePagination.classList.toggle("single-page", totalPages <= 1);
 }
 
+function setStateLabel(element, label, state = "") {
+  element.textContent = label;
+  element.classList.toggle("enabled", state === "enabled");
+  element.classList.toggle("warning", state === "warning");
+}
+
+function renderExitNode(status) {
+  const known = status.exit_node_state_known === true;
+  const advertised = known && status.exit_node_advertised;
+  const enabled = known && status.exit_node_enabled === true;
+  const label = !known ? "状态待确认" : enabled ? "本机已启用" : advertised ? "尚未就绪" : "已关闭";
+  const state = enabled ? "enabled" : !known || advertised ? "warning" : "";
+  const needsAttention = !known || Boolean(advertised && !enabled);
+  if (needsAttention && !appState.exitNeedsAttention) elements.exitDiagnostics.open = true;
+  appState.exitNeedsAttention = needsAttention;
+  if (!appState.exitNodeBusy) {
+    // An unknown state stays visually mixed; the first click requests cleanup.
+    elements.exitNodeToggle.checked = known ? Boolean(advertised) : true;
+    elements.exitNodeToggle.indeterminate = !known;
+    elements.exitNodeToggle.disabled = appState.connectionBusy || (!status.logged_in && known && !advertised);
+    setStateLabel(elements.exitNodeState, label, state);
+  }
+  setStateLabel(elements.overviewExitStatus, label, state);
+  setStateLabel(elements.exitConnectionState, status.connected ? "已连接" : "未连接", status.connected ? "enabled" : "warning");
+  setStateLabel(elements.exitAdvertiseState, !known ? "无法读取" : advertised ? "正在广播" : "已停止", advertised ? "enabled" : !known ? "warning" : "");
+  setStateLabel(elements.exitIPv4State, status.ipv4_forwarding ? "已开启" : "未开启", status.ipv4_forwarding ? "enabled" : advertised ? "warning" : "");
+  setStateLabel(elements.exitIPv6State, status.ipv6_forwarding_available === false ? "系统未提供" : status.ipv6_forwarding ? "已开启" : "未开启", status.ipv6_forwarding ? "enabled" : advertised && status.ipv6_forwarding_available !== false ? "warning" : "");
+  const approved = status.exit_node_approval === "approved";
+  setStateLabel(elements.exitApprovalState, approved ? "已获控制台批准" : "需在控制台确认", approved ? "enabled" : "");
+  elements.exitNodeNote.textContent = !known
+    ? "暂时无法读取本机出口广播状态，请刷新重试；关闭开关可尝试停止广播并清理本应用的转发配置。"
+    : enabled
+      ? approved
+        ? "本机已连接并广播出口路由，IP 转发已就绪，控制台已批准此设备。其他设备选择本机作为出口后即可使用。"
+        : "本机已连接并广播出口路由，IP 转发已就绪。首次使用仍需在管理控制台批准，再由其他设备选择本机作为出口。"
+      : advertised
+        ? "出口广播已配置，连接或 IP 转发尚未就绪。请查看下方检查结果，也可关闭后重新开启。"
+        : "开启后会连接本机、广播出口路由并验证 IP 转发。关闭后停止出口广播，并恢复本应用管理的转发设置。";
+  elements.overviewExitDescription.textContent = enabled
+    ? approved ? "本机出口服务已就绪且获批，其他设备可选择本机作为出口。" : "本机出口服务已就绪；在控制台确认授权后，其他设备即可选择本机。"
+    : advertised
+      ? "出口广播已配置，本机连接或 IP 转发仍需检查。"
+      : !known
+        ? "尚未确认本机状态，前往设置查看连接与转发详情。"
+        : "让获准的设备通过这台 NAS 访问互联网。";
+}
+
 function renderStatus(status) {
   appState.status = status;
   appState.devices = status.devices || [];
-  elements.packageVersion.textContent = status.package_version || "fnos.0.5";
-  elements.versionValue.textContent = status.package_version || "—";
+  elements.packageVersion.textContent = status.package_version || "开发构建";
+  const revision = status.package_version?.match(/-fnos\.(.+)$/)?.[1];
+  elements.versionValue.textContent = revision ? `v${revision}` : status.package_version || "—";
+  elements.versionValue.title = status.package_version || "";
+  elements.settingsVersion.textContent = status.package_version || "—";
+  elements.tailscaleVersion.textContent = status.tailscale_version || "—";
+  elements.lastUpdated.textContent = `同步于 ${new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`;
   elements.backendState.textContent = backendLabel(status.backend_state);
+  elements.connectionCard.classList.toggle("connected", Boolean(status.connected));
+  elements.connectionCard.classList.toggle("warning", !status.connected && Boolean(status.logged_in));
   elements.statusDot.className = `status-dot ${status.connected ? "connected" : status.logged_in ? "warning" : "error"}`;
-  elements.powerButton.disabled = false;
+  elements.powerButton.disabled = appState.connectionBusy || appState.exitNodeBusy;
   elements.powerButton.classList.toggle("connected", status.connected);
-  elements.powerLabel.textContent = status.connected ? "断开连接" : status.logged_in ? "重新连接" : "登录连接";
+  if (!appState.connectionBusy) elements.powerLabel.textContent = status.connected ? "断开连接" : status.logged_in ? "重新连接" : "登录连接";
+  elements.powerButton.setAttribute("aria-label", status.connected ? "断开 Tailscale 连接" : status.logged_in ? "重新连接 Tailscale" : "登录 Tailscale");
   elements.connectionDescription.textContent = status.connected
-    ? "本机流量已接入加密的 Tailscale 网络，设备状态会自动刷新。"
-    : status.logged_in
+    ? "可通过 Tailscale IP 安全访问本机与获准设备。"
+    : status.backend_state === "NeedsMachineAuth"
+      ? "设备已经登录，正在等待 Tailnet 管理员批准。"
+      : status.logged_in
       ? "设备身份仍然保留，点击电源按钮即可重新接入 Tailnet。"
-      : status.backend_state === "NeedsMachineAuth"
-        ? "设备已经登录，但仍需要 Tailnet 管理员批准。"
-        : "使用浏览器或 Auth Key 登录后即可接入你的 Tailnet。";
+      : "使用浏览器或 Auth Key 登录后即可接入你的 Tailnet。";
 
   const self = status.self;
   const primaryIP = status.tailscale_ips?.[0] || self?.ips?.[0] || "—";
   elements.identityRow.hidden = !self;
   elements.selfName.textContent = self?.name || "—";
+  elements.sidebarDeviceName.textContent = self?.name || "本机 fnOS";
+  elements.sidebarStatus.textContent = status.connected ? "已连接到 Tailnet" : backendLabel(status.backend_state);
   elements.tailnetName.textContent = status.tailnet || "Tailnet";
   elements.onlineCount.textContent = status.online_count ?? 0;
   elements.totalCount.textContent = ` / ${status.total_count ?? 0}`;
   elements.devicePageOnline.textContent = status.online_count ?? 0;
   elements.tailscaleIP.textContent = primaryIP;
-  if (document.activeElement !== elements.hostnameInput) elements.hostnameInput.value = self?.name || "";
+  elements.copyIPButton.disabled = primaryIP === "—";
+  if (!appState.hostnameDirty && document.activeElement !== elements.hostnameInput) elements.hostnameInput.value = self?.name || "";
   elements.hostnameInput.disabled = !status.logged_in;
-  elements.hostnameForm.querySelector("button").disabled = !status.logged_in;
-  elements.exitNodeToggle.checked = Boolean(status.exit_node_advertised);
-  elements.exitNodeToggle.disabled = !status.logged_in;
-  elements.exitNodeNote.textContent = status.exit_node_advertised
-    ? "正在广播 Exit Node。首次启用后仍需在 Tailscale 管理后台批准。"
-    : "启用后会打开运行时 IP 转发，并需要在 Tailscale 管理后台批准此设备。";
+  elements.hostnameForm.querySelector("button").disabled = !status.logged_in || appState.hostnameBusy;
+  renderExitNode(status);
+  const health = status.health || [];
+  elements.healthPanel.hidden = health.length === 0;
+  elements.healthList.innerHTML = health.map((message) => `<li>${escapeHTML(message)}</li>`).join("");
   elements.accountDeviceName.textContent = self?.name || "尚未登录";
   elements.accountTailnet.textContent = status.tailnet || "—";
   elements.accountIP.textContent = primaryIP;
-  elements.logoutButton.disabled = !status.logged_in;
+  elements.logoutButton.disabled = !status.logged_in || appState.exitNodeBusy;
   renderDevices();
 
   if (status.logged_in && elements.loginDialog.open) {
@@ -261,7 +347,9 @@ function renderStatus(status) {
 function renderUnavailable(message) {
   appState.status = null;
   appState.devices = [];
+  appState.latencyMeasured = false;
   elements.backendState.textContent = "本机服务不可用";
+  elements.connectionCard.classList.remove("connected", "warning");
   elements.statusDot.className = "status-dot error";
   elements.connectionDescription.textContent = message;
   elements.powerButton.disabled = true;
@@ -271,6 +359,23 @@ function renderUnavailable(message) {
   elements.totalCount.textContent = " / —";
   elements.devicePageOnline.textContent = "—";
   elements.tailscaleIP.textContent = "—";
+  elements.latencyValue.textContent = "—";
+  elements.latencyUnit.textContent = "";
+  elements.latencyRegion.textContent = "等待本机服务恢复";
+  elements.identityRow.hidden = true;
+  elements.sidebarStatus.textContent = "本机服务不可用";
+  elements.lastUpdated.textContent = "同步失败";
+  elements.copyIPButton.disabled = true;
+  elements.healthPanel.hidden = true;
+  elements.exitNodeToggle.indeterminate = true;
+  setStateLabel(elements.exitNodeState, "状态未知", "warning");
+  setStateLabel(elements.overviewExitStatus, "状态未知", "warning");
+  elements.overviewExitDescription.textContent = "无法连接本机服务，请刷新后查看出口状态。";
+  elements.exitNodeNote.textContent = "无法读取本机状态。请确认应用已启动，再刷新重试。";
+  elements.exitDiagnostics.open = true;
+  appState.exitNeedsAttention = true;
+  [elements.exitConnectionState, elements.exitAdvertiseState, elements.exitIPv4State, elements.exitIPv6State].forEach((element) => setStateLabel(element, "无法读取", "warning"));
+  setStateLabel(elements.exitApprovalState, "无法确认", "warning");
   elements.hostnameInput.disabled = true;
   elements.hostnameForm.querySelector("button").disabled = true;
   elements.exitNodeToggle.disabled = true;
@@ -282,29 +387,44 @@ function renderUnavailable(message) {
 }
 
 async function loadStatus(showError = false) {
-  if (appState.refreshing) return;
+  if (appState.refreshing) return appState.refreshPromise;
   appState.refreshing = true;
   elements.refreshButton.classList.add("loading");
-  try {
-    renderStatus(await request("status"));
-  } catch (error) {
-    renderUnavailable(error.message);
-    if (showError) toast(error.message, "error");
-  } finally {
-    appState.refreshing = false;
-    elements.refreshButton.classList.remove("loading");
-  }
+  const epoch = appState.statusEpoch;
+  appState.refreshPromise = (async () => {
+    try {
+      const status = await request("status");
+      if (epoch === appState.statusEpoch) renderStatus(status);
+    } catch (error) {
+      if (epoch === appState.statusEpoch) renderUnavailable(error.message);
+      if (showError) toast(error.message, "error");
+    } finally {
+      appState.refreshing = false;
+      elements.refreshButton.classList.remove("loading");
+    }
+  })();
+  return appState.refreshPromise;
+}
+
+async function refreshAfterAction() {
+  appState.statusEpoch += 1;
+  await appState.refreshPromise;
+  await loadStatus();
 }
 
 async function toggleConnection() {
   const status = appState.status;
-  if (!status) return;
+  if (!status || appState.connectionBusy || appState.exitNodeBusy) return;
   if (!status.logged_in) {
     elements.loginDialog.showModal();
     return;
   }
   if (status.connected && !window.confirm("确认断开当前设备的 Tailscale 连接？设备身份和设置会保留。")) return;
+  appState.connectionBusy = true;
+  appState.statusEpoch += 1;
   elements.powerButton.disabled = true;
+  elements.exitNodeToggle.disabled = true;
+  elements.logoutButton.disabled = true;
   elements.powerLabel.textContent = status.connected ? "正在断开" : "正在连接";
   try {
     const result = await post(status.connected ? "down" : "connect");
@@ -313,7 +433,8 @@ async function toggleConnection() {
   } catch (error) {
     toast(error.message, "error");
   } finally {
-    await loadStatus();
+    appState.connectionBusy = false;
+    await refreshAfterAction();
   }
 }
 
@@ -340,6 +461,8 @@ function selectLoginTab(mode) {
   elements.keyTab.classList.toggle("active", !browser);
   elements.browserTab.setAttribute("aria-selected", String(browser));
   elements.keyTab.setAttribute("aria-selected", String(!browser));
+  elements.browserTab.setAttribute("tabindex", browser ? "0" : "-1");
+  elements.keyTab.setAttribute("tabindex", browser ? "-1" : "0");
   elements.browserPane.classList.toggle("active", browser);
   elements.keyPane.classList.toggle("active", !browser);
   elements.browserPane.hidden = !browser;
@@ -437,36 +560,74 @@ async function authKeyLogin() {
 
 async function saveHostname(event) {
   event.preventDefault();
+  if (appState.hostnameBusy) return;
   const hostname = elements.hostnameInput.value.trim();
+  if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(hostname)) {
+    toast("名称需为 1–63 位英文字母、数字或连字符，且不能以连字符开头或结尾", "error");
+    return;
+  }
   const button = elements.hostnameForm.querySelector("button");
+  appState.hostnameBusy = true;
   setBusy(button, true, "保存中");
   try {
     await post("hostname", { hostname });
+    appState.hostnameDirty = false;
     toast("设备名称已更新", "success");
-    await loadStatus();
+    await refreshAfterAction();
   } catch (error) {
     toast(error.message, "error");
   } finally {
+    appState.hostnameBusy = false;
     setBusy(button, false);
   }
 }
 
 async function toggleExitNode() {
+  if (appState.exitNodeBusy || appState.connectionBusy) return;
   const enabled = elements.exitNodeToggle.checked;
-  if (enabled && !window.confirm("启用后，Tailnet 中获准的设备可以通过这台 fnOS 访问互联网。确认继续？")) {
-    elements.exitNodeToggle.checked = false;
-    return;
-  }
+  appState.exitNodeBusy = true;
+  appState.statusEpoch += 1;
+  elements.exitNodeToggle.indeterminate = false;
   elements.exitNodeToggle.disabled = true;
+  elements.powerButton.disabled = true;
+  elements.logoutButton.disabled = true;
+  elements.exitNodeToggle.setAttribute("aria-busy", "true");
+  setStateLabel(elements.exitNodeState, enabled ? "正在启用…" : "正在关闭…", "warning");
+  elements.exitNodeNote.textContent = enabled ? "正在配置本机连接、出口广播和 IP 转发，请稍候。" : "正在停止出口广播并恢复本应用管理的转发设置，请稍候。";
   try {
     const result = await post("exit-node", { enabled });
-    toast(enabled ? "已广播本机为 Exit Node" : "已停止广播 Exit Node", "success");
+    toast(result.enabled ? "本机 Exit Node 已启用，请在控制台确认授权" : "本机 Exit Node 已关闭", "success");
     if (result.warnings?.length) toast(result.warnings.join("；"));
   } catch (error) {
-    elements.exitNodeToggle.checked = !enabled;
     toast(error.message, "error");
   } finally {
-    await loadStatus();
+    appState.exitNodeBusy = false;
+    elements.exitNodeToggle.setAttribute("aria-busy", "false");
+    await refreshAfterAction();
+  }
+}
+
+async function copyIP() {
+  const address = appState.status?.tailscale_ips?.[0] || appState.status?.self?.ips?.[0];
+  if (!address) return;
+  try {
+    if (window.navigator?.clipboard?.writeText) {
+      await window.navigator.clipboard.writeText(address);
+    } else {
+      const input = document.createElement("textarea");
+      input.value = address;
+      input.setAttribute("readonly", "");
+      input.className = "clipboard-input";
+      document.body.appendChild(input);
+      input.select();
+      const copied = document.execCommand("copy");
+      input.remove();
+      elements.copyIPButton.focus();
+      if (!copied) throw new Error("copy unavailable");
+    }
+    toast(`已复制 ${address}`, "success");
+  } catch {
+    toast(`请手动复制地址：${address}`);
   }
 }
 
@@ -477,11 +638,14 @@ async function measureLatency(showError = true) {
   elements.latencyUnit.textContent = "";
   try {
     const result = await request("latency");
-    elements.latencyValue.textContent = result.nearest_ms ? Number(result.nearest_ms).toFixed(1) : "—";
-    elements.latencyUnit.textContent = result.nearest_ms ? " ms" : "";
+    const hasLatency = result.nearest_ms != null && Number.isFinite(Number(result.nearest_ms)) && Number(result.nearest_ms) > 0;
+    elements.latencyValue.textContent = hasLatency ? Number(result.nearest_ms).toFixed(1) : "—";
+    elements.latencyUnit.textContent = hasLatency ? " ms" : "";
+    elements.latencyRegion.textContent = result.preferred_derp ? `首选 DERP #${result.preferred_derp}` : "未找到可用 DERP";
     elements.latencyButton.title = result.preferred_derp ? `首选 DERP #${result.preferred_derp}` : "未找到可用 DERP";
   } catch (error) {
     elements.latencyValue.textContent = "—";
+    elements.latencyRegion.textContent = "检测未完成，可点击重测";
     if (showError) toast(error.message, "error");
   } finally {
     elements.latencyButton.disabled = false;
@@ -593,25 +757,57 @@ function commitAppearanceValueOnEnter(event) {
 }
 
 document.querySelectorAll("[data-page]").forEach((button) => button.addEventListener("click", () => navigate(button.dataset.page)));
+document.querySelectorAll("[data-settings-tab]").forEach((tab) => {
+  tab.addEventListener("click", () => selectSettingsTab(tab.dataset.settingsTab));
+  tab.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const index = settingsTabs.indexOf(tab.dataset.settingsTab);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? settingsTabs.length - 1
+      : (index + (event.key === "ArrowRight" ? 1 : -1) + settingsTabs.length) % settingsTabs.length;
+    selectSettingsTab(settingsTabs[next], true);
+  });
+});
 document.querySelectorAll("[data-device-filter]").forEach((button) => button.addEventListener("click", () => {
   appState.deviceFilter = button.dataset.deviceFilter;
   appState.devicePage = 1;
-  document.querySelectorAll("[data-device-filter]").forEach((item) => item.classList.toggle("active", item === button));
+  document.querySelectorAll("[data-device-filter]").forEach((item) => {
+    item.classList.toggle("active", item === button);
+    item.setAttribute("aria-pressed", String(item === button));
+  });
   renderDevices();
 }));
 elements.refreshButton.addEventListener("click", () => loadStatus(true));
 elements.powerButton.addEventListener("click", toggleConnection);
 elements.viewAllDevices.addEventListener("click", () => navigate("devices"));
+elements.overviewSettingsButton.addEventListener("click", () => {
+  selectSettingsTab("network");
+  navigate("settings");
+});
+elements.openExitSettings.addEventListener("click", () => {
+  selectSettingsTab("network");
+  navigate("settings");
+  elements.exitNodeToggle.focus();
+});
+elements.copyIPButton.addEventListener("click", copyIP);
 elements.deviceSearch.addEventListener("input", () => { appState.devicePage = 1; renderDevices(); });
 elements.devicePrev.addEventListener("click", () => { appState.devicePage -= 1; renderDevices(); });
 elements.deviceNext.addEventListener("click", () => { appState.devicePage += 1; renderDevices(); });
 elements.hostnameForm.addEventListener("submit", saveHostname);
+elements.hostnameInput.addEventListener("input", () => { appState.hostnameDirty = true; });
 elements.exitNodeToggle.addEventListener("change", toggleExitNode);
 elements.logoutButton.addEventListener("click", logout);
 elements.latencyButton.addEventListener("click", () => measureLatency(true));
 elements.updateButton.addEventListener("click", () => checkUpdate(true));
 elements.browserTab.addEventListener("click", () => selectLoginTab("browser"));
 elements.keyTab.addEventListener("click", () => selectLoginTab("key"));
+[elements.browserTab, elements.keyTab].forEach((tab) => tab.addEventListener("keydown", (event) => {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const mode = event.key === "Home" ? "browser" : event.key === "End" ? "key" : tab === elements.browserTab ? "key" : "browser";
+  selectLoginTab(mode);
+  (mode === "browser" ? elements.browserTab : elements.keyTab).focus();
+}));
 elements.browserLoginButton.addEventListener("click", browserLogin);
 elements.keyLoginButton.addEventListener("click", authKeyLogin);
 // Keep the page geometry fixed while a range thumb is being dragged. Applying
@@ -638,4 +834,6 @@ loadAppearance();
 navigate(window.location.hash.slice(1), false);
 loadStatus();
 checkUpdate(false);
-appState.statusTimer = window.setInterval(() => loadStatus(false), 10000);
+appState.statusTimer = window.setInterval(() => {
+  if (!appState.exitNodeBusy && !appState.connectionBusy) return loadStatus(false);
+}, 10000);

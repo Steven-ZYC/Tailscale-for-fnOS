@@ -170,17 +170,12 @@ check_conflicts() {
 }
 
 restore_exit_node_forwarding() {
-  local advertised
-  advertised="$("$TAILSCALE_BIN" --socket="$SOCKET_PATH" get advertise-exit-node 2>> "$LOG_FILE" || true)"
-  [ "$advertised" = "true" ] || return 0
-
-  if [ -w /proc/sys/net/ipv4/ip_forward ]; then
-    printf '1\n' > /proc/sys/net/ipv4/ip_forward
+  local manager_bin="${BIN_DIR}/tailscale-fnos"
+  [ -x "$manager_bin" ] || return 0
+  if ! TRIM_PKGVAR="$PKG_VAR" TRIM_PKGTMP="$PKG_TMP" "$manager_bin" restore-exit-node >> "$LOG_FILE" 2>&1; then
+    write_user_error "Unable to restore Exit Node IP forwarding. Check ${LOG_FILE} and the Exit Node settings."
+    return 1
   fi
-  if [ -w /proc/sys/net/ipv6/conf/all/forwarding ]; then
-    printf '1\n' > /proc/sys/net/ipv6/conf/all/forwarding
-  fi
-  log_message "Restored runtime IP forwarding for the configured Exit Node."
 }
 
 start_app() {
@@ -190,7 +185,8 @@ start_app() {
       return 1
     fi
     chmod 0600 "$SOCKET_PATH" 2>/dev/null || true
-    return 0
+    restore_exit_node_forwarding
+    return $?
   fi
 
   if [ "$(id -u)" -ne 0 ]; then
@@ -239,7 +235,12 @@ start_app() {
     fi
     if [ -S "$SOCKET_PATH" ]; then
       chmod 0600 "$SOCKET_PATH" 2>/dev/null || true
-      restore_exit_node_forwarding
+      if ! restore_exit_node_forwarding; then
+        # A newly launched daemon belongs to this failed start attempt.
+        # Existing healthy daemons use the recovery branch above and stay live.
+        stop_app
+        return 1
+      fi
       return 0
     fi
     sleep 1

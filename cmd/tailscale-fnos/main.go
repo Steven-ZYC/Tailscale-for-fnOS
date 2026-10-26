@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/cgi"
 	"os"
+	"time"
 
 	"github.com/Steven-ZYC/Tailscale-for-fnOS/internal/manager"
 )
@@ -23,6 +25,13 @@ func main() {
 	config := manager.DefaultConfig()
 	config.PackageVersion = packageVersion
 	config.TailscaleVersion = tailscaleVersion
+	if stateDir := os.Getenv("TRIM_PKGVAR"); stateDir != "" {
+		config.StateDir = stateDir
+	}
+	if tempDir := os.Getenv("TRIM_PKGTMP"); tempDir != "" {
+		config.TempDir = tempDir
+		config.SocketPath = tempDir + "/tailscaled.sock"
+	}
 	if command == "serve" {
 		config.IconPath = "packaging/app/ui/images/icon_64.png"
 		if binary := os.Getenv("TAILSCALE_FNOS_DEV_BINARY"); binary != "" {
@@ -48,8 +57,15 @@ func main() {
 		}
 	case "version":
 		fmt.Printf("Tailscale for fnOS %s (Tailscale %s)\n", packageVersion, tailscaleVersion)
+	case "restore-exit-node":
+		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+		defer cancel()
+		if err := server.RestoreExitNodeForwarding(ctx); err != nil {
+			log.Printf("Unable to restore Exit Node forwarding: %v", err)
+			os.Exit(1)
+		}
 	default:
-		fmt.Fprintln(os.Stderr, "usage: tailscale-fnos {cgi|serve [address]|version}")
+		fmt.Fprintln(os.Stderr, "usage: tailscale-fnos {cgi|serve [address]|version|restore-exit-node}")
 		os.Exit(2)
 	}
 }

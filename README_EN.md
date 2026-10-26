@@ -69,13 +69,22 @@ Go to **[GitHub Releases (latest release)](https://github.com/Steven-ZYC/Tailsca
 | Version tracking | Checks GitHub Releases for new versions when the interface opens, with manual checks also available |
 | In-place upgrades | Upgrading through a newer FPK is designed to preserve existing node state and identity; back up and verify before upgrading |
 
-**Actual UI screenshots of the current version have not yet been added to the repository.** To avoid misleading readers, this document does not present mockups as screenshots of the application running on a real device.
+## Interface preview
+
+Browser screenshots of the v0.8.1 management interface, using simulated network data.
+
+![Network overview](assets/screenshots/overview.png)
+
+![Exit Node settings and status checks](assets/screenshots/exit-node.png)
 
 ## Updating and usage limitations
 
+> [!NOTE]
+> **Upgrading remotely over Tailscale:** The upgrade restarts the Tailscale service. If you access the fnOS dashboard through Tailscale, the page may briefly disconnect or show a connection error. This is expected during the upgrade; wait for connectivity to return, then refresh the page.
+
 - **Updates must be performed manually:** Obtain a complete FPK with a higher version from [Releases](https://github.com/Steven-ZYC/Tailscale-for-fnOS/releases) and install it over the existing application in fnOS; an on-screen notification does not mean an automatic upgrade.
 - **Do not use the client remote update feature in the Tailscale Admin Console to upgrade this FPK.** It cannot update the fnOS integration scripts and this project's interface at the same time.
-- **Do not install an older version over a newer one:** Installing a lower-version FPK over a higher version is not recommended; back up important devices before upgrading.
+- **Upgrade only:** fnOS does not support downgrading over an installed version. Install an FPK with a higher version number and back up important devices first.
 - **Be aware of elevated privileges:** `tailscaled` runs as root. Assess the risks of third-party networking software before installation.
 - **Installation status:** This repository provides community builds for testing and does not indicate that the application has been officially certified by Feiniu or Tailscale.
 
@@ -92,10 +101,10 @@ The following sections retain implementation details, automated build mechanisms
 ### Version naming rules
 
 Complete FPK versions and formal GitHub release tags use the
-`v<Tailscale-version>-fnos.<community-version>` format, for example `v1.104.2-fnos.0.6`:
+`v<Tailscale-version>-fnos.<community-version>` format, for example `v1.104.2-fnos.0.8.1`:
 
 - `1.104.2` indicates the bundled official Tailscale version;
-- `fnos.0.6` indicates the version of this project's fnOS community integration layer and upper-level management UI;
+- `fnos.0.8.1` indicates the version of this project's fnOS community integration layer and upper-level management UI;
 - The leading `v` is a Git tag prefix and is not part of the internal FPK version.
 
 ### Application behavior
@@ -127,6 +136,14 @@ Complete FPK versions and formal GitHub release tags use the
   application files are replaced, and the node identity, keys, and preferences in `TRIM_PKGVAR/state` are preserved, allowing the upgraded application
   to continue using the same node. Do not install a lower version over a higher one; backing up application data before upgrading important devices is still recommended;
 - Uninstall lifecycle scripts do not silently delete the saved node identity.
+
+### Using the NAS as an exit node
+
+The Exit Node switch under Settings → Device & network enables IP forwarding on the NAS, advertises the local node, starts its Tailscale connection, and reads the resulting state back. Expand the connection and forwarding details to inspect connection, advertisement, IPv4 / IPv6 forwarding, and console approval. The details open automatically when the state is unknown or the advertised node is not ready. Existing hostname, DNS, and subnet-route preferences are preserved.
+
+First use also requires approval in the Admin Console and selecting this NAS as the exit node on another device, following the [official Tailscale instructions](https://tailscale.com/docs/features/exit-nodes?tab=linux). Local readiness and console approval are separate; local checks cannot establish that another device's internet traffic is flowing successfully.
+
+Turning the switch off withdraws local exit-node advertisement and restores forwarding enabled by this application. Forwarding already enabled by the system or still needed for subnet routes is preserved. Failed activation attempts are rolled back where possible and report the reason. Application startup restores forwarding required by the saved configuration.
 
 ### Implementation boundaries
 

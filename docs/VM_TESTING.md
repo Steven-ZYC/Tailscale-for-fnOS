@@ -36,6 +36,9 @@ Use a disposable fnOS VM. Do not put a production NAS or its data in scope.
    If pop-ups are blocked, confirm a manual fallback link is shown.
 2. Open Overview, Devices, and Settings from the fnOS desktop window and confirm
    each page loads without a full-page navigation or HTTP error.
+   In Settings, switch between Device & network, Display, Account, and About &
+   updates. Verify the arrow, Home, and End keys move focus and select the matching
+   panel. The Overview exit-node shortcut should always open Device & network.
 3. Populate a Tailnet with more than eight devices, then verify search, the
    online-only filter, and previous/next pagination.
 4. Confirm Windows, macOS, iOS, Android, Linux, BSD, and the local fnOS node use
@@ -45,9 +48,38 @@ Use a disposable fnOS VM. Do not put a production NAS or its data in scope.
    and editable percentage fields. Confirm scaling applies only after releasing
    a slider or committing a typed value, no thumb jumps to 50%, and both values
    persist after reloading. Restore the defaults before continuing.
+   At narrow window widths, also test 160% font with 160% interface zoom: navigation
+   labels, the hostname form, and the exit-node switch must wrap without squeezing
+   descriptions into a column of single characters.
 6. Use `tailscale status` in SSH to record the current node identity. Choose
    **退出登录** in Settings, confirm the warning, and verify the UI returns to
    NeedsLogin. Log in again and confirm a valid node appears in the Tailnet.
+
+## Exit Node acceptance
+
+1. Record the current hostname, DNS preferences, advertised subnet routes, and
+   `/proc/sys/net/ipv4/ip_forward` / `/proc/sys/net/ipv6/conf/all/forwarding` values.
+2. While logged in but disconnected, enable Exit Node. Confirm the NAS connects,
+   `tailscale get advertise-exit-node` returns `true`, and the available IPv4 /
+   IPv6 forwarding values are `1`. Confirm unrelated preferences remain intact.
+3. Before console approval, verify the UI distinguishes local readiness from
+   approval and does not claim that client internet traffic has been verified.
+4. Approve the NAS in the Admin Console. On a second device choose the NAS as
+   the exit node and check its public IP plus IPv4 / IPv6 internet access where
+   available. Run this check on a separate device, not just on the NAS.
+5. Disable the switch. Confirm `tailscale get advertise-exit-node` returns `false`,
+   this NAS no longer offers an exit route, and the second device cannot continue
+   routing internet traffic through it. Confirm subnet-route preferences remain.
+6. Repeat with forwarding initially off and initially on. Only forwarding owned
+   by this application should be restored; preexisting forwarding must stay on.
+7. Simulate a failed forwarding write or failed `tailscale up` on a disposable
+   fixture. Confirm the UI shows failure, refreshes real state, and activation
+   rolls back. Repeat a disable request to confirm it is safe to retry.
+8. Enable again, restart the app, then reboot fnOS. Verify advertisement,
+   forwarding, local readiness, and second-device internet access after each.
+   Disable and reboot once more; the node must not resume exit-node advertisement.
+9. Open two management tabs and toggle concurrently. Confirm operations serialize
+   and the next refresh in both tabs agrees with the NAS state.
 
 ## Restart and lifecycle test
 

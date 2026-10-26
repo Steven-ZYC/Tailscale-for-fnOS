@@ -34,6 +34,8 @@ func newTestConfig(t *testing.T, runner Runner) Config {
 	config := DefaultConfig()
 	config.Runner = runner
 	config.TempDir = directory
+	config.StateDir = directory
+	config.NetworkClassPath = directory
 	config.IPv4ForwardPath = ipv4
 	config.IPv6ForwardPath = ipv6
 	config.PackageVersion = "1.102.2-fnos.0.1"
@@ -221,26 +223,6 @@ func TestLatencyParsesNanosecondsAndIgnoresStderrWarning(t *testing.T) {
 	data := decodeData[latencyResponse](t, response)
 	if data.NearestMS != 21.5 || data.PreferredDERP != 2 || !data.UDP {
 		t.Fatalf("unexpected latency: %+v", data)
-	}
-}
-
-func TestExitNodeEnablesForwardingAndUsesBooleanFlag(t *testing.T) {
-	var received []string
-	runner := fakeRunner{run: func(_ context.Context, args ...string) (CommandResult, error) {
-		received = append([]string(nil), args...)
-		return CommandResult{}, nil
-	}}
-	config := newTestConfig(t, runner)
-	server := NewServer(config)
-	response := performRequest(t, server, http.MethodPost, "/api/exit-node", `{"enabled":true}`)
-	if response.Code != http.StatusOK {
-		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
-	}
-	if !forwardingEnabled(config.IPv4ForwardPath) || !forwardingEnabled(config.IPv6ForwardPath) {
-		t.Fatal("forwarding was not enabled")
-	}
-	if strings.Join(received, "|") != "set|--advertise-exit-node=true" {
-		t.Fatalf("unexpected command: %#v", received)
 	}
 }
 

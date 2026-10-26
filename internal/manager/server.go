@@ -32,6 +32,8 @@ type Config struct {
 	IconPath         string
 	IPv4ForwardPath  string
 	IPv6ForwardPath  string
+	StateDir         string
+	NetworkClassPath string
 	PackageVersion   string
 	TailscaleVersion string
 	GitHubRepository string
@@ -47,6 +49,8 @@ func DefaultConfig() Config {
 		IconPath:         "/var/apps/TailscaleFnos/target/ui/images/icon_64.png",
 		IPv4ForwardPath:  "/proc/sys/net/ipv4/ip_forward",
 		IPv6ForwardPath:  "/proc/sys/net/ipv6/conf/all/forwarding",
+		StateDir:         "/var/apps/TailscaleFnos/var",
+		NetworkClassPath: "/sys/class/net",
 		PackageVersion:   "dev",
 		TailscaleVersion: "unknown",
 		GitHubRepository: "Steven-ZYC/Tailscale-for-fnOS",
@@ -79,14 +83,31 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/status", s.handleStatus)
 	s.mux.HandleFunc("GET /api/latency", s.handleLatency)
 	s.mux.HandleFunc("GET /api/update", s.handleUpdate)
-	s.mux.HandleFunc("POST /api/connect", s.handleConnect)
-	s.mux.HandleFunc("POST /api/down", s.handleDown)
-	s.mux.HandleFunc("POST /api/logout", s.handleLogout)
-	s.mux.HandleFunc("POST /api/login/browser", s.handleBrowserLogin)
-	s.mux.HandleFunc("POST /api/login/auth-key", s.handleAuthKeyLogin)
-	s.mux.HandleFunc("POST /api/hostname", s.handleHostname)
+	s.mux.HandleFunc("POST /api/connect", s.networkMutation(s.handleConnect))
+	s.mux.HandleFunc("POST /api/down", s.networkMutation(s.handleDown))
+	s.mux.HandleFunc("POST /api/logout", s.networkMutation(s.handleLogout))
+	s.mux.HandleFunc("POST /api/login/browser", s.networkMutation(s.handleBrowserLogin))
+	s.mux.HandleFunc("POST /api/login/auth-key", s.networkMutation(s.handleAuthKeyLogin))
+	s.mux.HandleFunc("POST /api/hostname", s.networkMutation(s.handleHostname))
 	s.mux.HandleFunc("POST /api/exit-node", s.handleExitNode)
 	s.mux.HandleFunc("GET /", s.handleIndex)
+}
+
+func (s *Server) networkMutation(handler http.HandlerFunc) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if !requireJSON(writer, request) {
+			return
+		}
+		ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
+		defer cancel()
+		unlock, err := s.lockNetworkMutation(ctx)
+		if err != nil {
+			writeError(writer, http.StatusConflict, "network_busy", err.Error())
+			return
+		}
+		defer unlock()
+		handler(writer, request.WithContext(ctx))
+	}
 }
 
 func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -146,22 +167,26 @@ func (s *Server) handleIcon(writer http.ResponseWriter, request *http.Request) {
 }
 
 type statusResponse struct {
-	BackendState       string   `json:"backend_state"`
-	Connected          bool     `json:"connected"`
-	LoggedIn           bool     `json:"logged_in"`
-	AuthURL            string   `json:"auth_url,omitempty"`
-	Tailnet            string   `json:"tailnet,omitempty"`
-	TailscaleIPs       []string `json:"tailscale_ips"`
-	Self               *Device  `json:"self,omitempty"`
-	Devices            []Device `json:"devices"`
-	OnlineCount        int      `json:"online_count"`
-	TotalCount         int      `json:"total_count"`
-	ExitNodeAdvertised bool     `json:"exit_node_advertised"`
-	IPv4Forwarding     bool     `json:"ipv4_forwarding"`
-	IPv6Forwarding     bool     `json:"ipv6_forwarding"`
-	Health             []string `json:"health"`
-	PackageVersion     string   `json:"package_version"`
-	TailscaleVersion   string   `json:"tailscale_version"`
+	BackendState            string   `json:"backend_state"`
+	Connected               bool     `json:"connected"`
+	LoggedIn                bool     `json:"logged_in"`
+	AuthURL                 string   `json:"auth_url,omitempty"`
+	Tailnet                 string   `json:"tailnet,omitempty"`
+	TailscaleIPs            []string `json:"tailscale_ips"`
+	Self                    *Device  `json:"self,omitempty"`
+	Devices                 []Device `json:"devices"`
+	OnlineCount             int      `json:"online_count"`
+	TotalCount              int      `json:"total_count"`
+	ExitNodeAdvertised      bool     `json:"exit_node_advertised"`
+	ExitNodeEnabled         bool     `json:"exit_node_enabled"`
+	ExitNodeStateKnown      bool     `json:"exit_node_state_known"`
+	ExitNodeApproval        string   `json:"exit_node_approval"`
+	IPv4Forwarding          bool     `json:"ipv4_forwarding"`
+	IPv6Forwarding          bool     `json:"ipv6_forwarding"`
+	IPv6ForwardingAvailable bool     `json:"ipv6_forwarding_available"`
+	Health                  []string `json:"health"`
+	PackageVersion          string   `json:"package_version"`
+	TailscaleVersion        string   `json:"tailscale_version"`
 }
 
 func (s *Server) readStatus(ctx context.Context) (statusResponse, error) {
@@ -222,12 +247,19 @@ func (s *Server) readStatus(ctx context.Context) (statusResponse, error) {
 		}
 	}
 	response.TotalCount = len(response.Devices)
-	response.ExitNodeAdvertised = raw.Self != nil && raw.Self.ExitNodeOption
-	if pref, err := s.runner.Run(ctx, "get", "advertise-exit-node"); err == nil {
-		response.ExitNodeAdvertised = strings.EqualFold(strings.TrimSpace(string(pref.Stdout)), "true")
+	response.ExitNodeApproval = "unknown"
+	if advertised, err := s.exitNodeAdvertised(ctx); err == nil {
+		response.ExitNodeAdvertised = advertised
+		response.ExitNodeStateKnown = true
+		if advertised && raw.Self != nil && raw.Self.ExitNodeOption {
+			response.ExitNodeApproval = "approved"
+		}
 	}
 	response.IPv4Forwarding = forwardingEnabled(s.config.IPv4ForwardPath)
 	response.IPv6Forwarding = forwardingEnabled(s.config.IPv6ForwardPath)
+	_, ipv6Err := os.Stat(s.config.IPv6ForwardPath)
+	response.IPv6ForwardingAvailable = !os.IsNotExist(ipv6Err)
+	response.ExitNodeEnabled = response.ExitNodeStateKnown && response.ExitNodeAdvertised && connected && response.IPv4Forwarding && (!response.IPv6ForwardingAvailable || response.IPv6Forwarding)
 	return response, nil
 }
 
@@ -269,7 +301,7 @@ func (s *Server) handleBrowserLogin(writer http.ResponseWriter, request *http.Re
 func (s *Server) runInteractiveUp(parent context.Context) (string, error) {
 	ctx, cancel := context.WithTimeout(parent, 12*time.Second)
 	defer cancel()
-	result, runErr := s.runner.Run(ctx, "up", "--timeout=8s")
+	result, runErr := s.runner.Run(ctx, "up")
 	loginURL := safeLoginURLFromText(combinedOutput(result))
 	if loginURL == "" {
 		statusCtx, statusCancel := context.WithTimeout(parent, 3*time.Second)
@@ -401,21 +433,11 @@ func (s *Server) handleExitNode(writer http.ResponseWriter, request *http.Reques
 		writeError(writer, http.StatusBadRequest, "invalid_request", "缺少 enabled 参数")
 		return
 	}
-	warnings := make([]string, 0, 1)
-	if *input.Enabled {
-		if err := enableForwarding(s.config.IPv4ForwardPath); err != nil {
-			writeError(writer, http.StatusInternalServerError, "forwarding_failed", "无法启用 IPv4 转发："+err.Error())
-			return
-		}
-		if err := enableForwarding(s.config.IPv6ForwardPath); err != nil && !os.IsNotExist(err) {
-			warnings = append(warnings, "IPv6 转发未能启用；IPv4 Exit Node 仍可继续使用")
-		}
-	}
-	ctx, cancel := context.WithTimeout(request.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(request.Context(), 25*time.Second)
 	defer cancel()
-	result, err := s.runner.Run(ctx, "set", fmt.Sprintf("--advertise-exit-node=%t", *input.Enabled))
+	warnings, err := s.setExitNode(ctx, *input.Enabled)
 	if err != nil {
-		writeError(writer, http.StatusBadGateway, "exit_node_failed", commandMessage(result, err))
+		writeError(writer, http.StatusBadGateway, "exit_node_failed", err.Error())
 		return
 	}
 	writeData(writer, http.StatusOK, map[string]any{"enabled": *input.Enabled, "warnings": warnings})
@@ -424,13 +446,6 @@ func (s *Server) handleExitNode(writer http.ResponseWriter, request *http.Reques
 func forwardingEnabled(path string) bool {
 	value, err := os.ReadFile(path)
 	return err == nil && strings.TrimSpace(string(value)) == "1"
-}
-
-func enableForwarding(path string) error {
-	if forwardingEnabled(path) {
-		return nil
-	}
-	return os.WriteFile(path, []byte("1\n"), 0644)
 }
 
 func requireJSON(writer http.ResponseWriter, request *http.Request) bool {

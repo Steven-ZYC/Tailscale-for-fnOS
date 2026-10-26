@@ -13,53 +13,12 @@ package_version="${TAILSCALE_VERSION}-fnos.${FNOS_PACKAGE_REVISION}"
 cat > "$output_file" <<EOF
 # Tailscale for fnOS ${package_version}
 
-Community-maintained native fnOS packages containing the official Tailscale
-${TAILSCALE_VERSION} stable Linux binaries and an original fnOS management
-interface.
+- **UI 改进：** 优化概览、设置分组、文字对比度和窄窗口布局，README 新增界面图片。
+- **Exit Node 改进：** 启用时检查连接、出口广播与 IP 转发，支持失败回滚和重启恢复，状态与授权提示更清晰。
 
-## Version and architectures
+通过 Tailscale 连接飞牛后台升级时，服务重启可能导致页面暂时断开或提示连接错误，这是正常情况；稍等网络恢复后刷新即可。fnOS 只支持升级，请安装更高版本的 FPK。
 
-- fnOS community integration: \`fnos.${FNOS_PACKAGE_REVISION}\` (test release)
-- Complete FPK version: \`${package_version}\`
-- GitHub Release tag: \`v${package_version}\`
-- \`x86\`: for x86_64/amd64 fnOS systems
-- \`arm\`: for arm64/aarch64 fnOS systems
+内置官方 Tailscale ${TAILSCALE_VERSION}，提供 x86-64（x86）与 ARM64（arm）安装包。可用 \`SHA256SUMS\` 校验下载，构建信息见 \`provenance.json\`。
 
-No 32-bit ARM package is currently produced. \`upstream.lock\` records the
-Tailscale version, amd64 and arm64 SHA-256 digests, fnOS package revision, and
-the pinned \`fnpack\` tool digest used for this release.
-
-## fnos.${FNOS_PACKAGE_REVISION} features
-
-- Recover a missing PID file by verifying the existing package daemon; upgrades
-  stop the owned daemon before replacing files and preserve live runtime records
-- Original Chinese dashboard; does not use the upstream CGI web interface
-- Connect/disconnect, account logout, and automatic browser or Auth Key login
-- Overview, Devices, and Settings pages with responsive navigation
-- OS-aware original SVG device icons, search, online filtering, and pagination
-- Stable 70-160% font and 50-160% interface-zoom controls with editable values
-- Tailnet device list and online-device count
-- On-demand DERP latency measurement
-- Local hostname and Exit Node advertisement controls
-- GitHub Release version check with update notification
-
-This is a test build. Complete the clean-VM acceptance checklist before making
-the GitHub Release public or submitting it to the fnOS application center.
-
-Install through fnOS App Center's manual-install function for testing. Public
-distribution should use the fnOS application-center review process.
-
-## Integrity
-
-Verify downloads with \`SHA256SUMS\`. \`provenance.json\` records the official
-upstream package digests and this build's artifact digests.
-
-Upstream release: https://github.com/tailscale/tailscale/releases/tag/v${TAILSCALE_VERSION}
-
-Official package source: https://pkgs.tailscale.com/${TAILSCALE_TRACK}/
-
-## Disclaimer
-
-Tailscale is a registered trademark of Tailscale Inc. This package is maintained
-by Steven Zhang Yancheng and is not endorsed by Tailscale Inc. or the fnOS vendor.
+社区测试构建，与 Tailscale Inc. 或飞牛 fnOS 官方无隶属或背书关系。Tailscale 是 Tailscale Inc. 的注册商标。
 EOF

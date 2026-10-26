@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 
+const indexSource = await readFile(new URL("../internal/manager/web/index.html", import.meta.url), "utf8");
+
 class FakeClassList {
   constructor() {
     this.values = new Set();
@@ -38,6 +40,7 @@ class FakeElement {
     this.href = "";
     this.title = "";
     this.className = "";
+    this.tabIndex = 0;
     this.dataset = {};
     this.classList = new FakeClassList();
     this.attributes = new Map();
@@ -49,14 +52,23 @@ class FakeElement {
     this.listeners.set(type, listener);
   }
 
-  async emit(type) {
+  async emit(type, event = {}) {
     const listener = this.listeners.get(type);
-    if (listener) return listener({ preventDefault() {} });
+    if (listener) return listener({ preventDefault() {}, ...event });
     return undefined;
+  }
+
+  focus() {
+    document.activeElement = this;
   }
 
   setAttribute(name, value) {
     this.attributes.set(name, String(value));
+    if (name === "tabindex") this.tabIndex = Number(value);
+  }
+
+  getAttribute(name) {
+    return this.attributes.get(name) ?? null;
   }
 
   removeAttribute(name) {
@@ -90,19 +102,24 @@ class FakeElement {
   }
 }
 
-const elementIDs = [
-  "packageVersion", "refreshButton", "statusDot", "backendState", "connectionDescription",
-  "identityRow", "selfName", "tailnetName", "powerButton", "powerLabel", "onlineCount",
-  "totalCount", "latencyValue", "latencyUnit", "latencyButton", "tailscaleIP", "versionValue",
-  "updateState", "overviewDeviceCards", "viewAllDevices", "deviceCards", "deviceSearch",
-  "devicePagination", "devicePrev", "deviceNext", "devicePageLabel", "devicePageOnline",
-  "hostnameForm", "hostnameInput", "exitNodeToggle", "exitNodeNote", "fontScaleInput",
-  "fontScaleValue", "uiZoomInput", "uiZoomValue", "appearanceResetButton", "accountDeviceName",
-  "accountTailnet", "accountIP", "logoutButton", "updateButton", "updateDescription",
-  "releaseLink", "loginDialog", "browserTab", "keyTab", "browserPane", "keyPane",
-  "browserLoginButton", "authLink", "authKeyInput", "keyLoginButton", "toastRegion"
-];
+const elementIDs = [...indexSource.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 const elements = new Map(elementIDs.map((id) => [id, new FakeElement(id)]));
+
+function elementsWithDataAttribute(attribute, datasetKey) {
+  return [...indexSource.matchAll(new RegExp(`<[^>]+\\b${attribute}="([^"]+)"[^>]*>`, "g"))].map((match) => {
+    const tag = match[0];
+    const element = elements.get(tag.match(/\bid="([^"]+)"/)[1]);
+    element.dataset[datasetKey] = match[1];
+    for (const [, name, value] of tag.matchAll(/([\w-]+)="([^"]*)"/g)) element.setAttribute(name, value);
+    element.hidden = /\s+hidden(?:\s|>)/.test(tag);
+    const classes = tag.match(/\bclass="([^"]*)"/)?.[1] || "";
+    element.classList.add(...classes.split(/\s+/).filter(Boolean));
+    return element;
+  });
+}
+
+const settingsTabElements = elementsWithDataAttribute("data-settings-tab", "settingsTab");
+const settingsPanelElements = elementsWithDataAttribute("data-settings-panel", "settingsPanel");
 elements.get("browserLoginButton").textContent = "登录并打开授权页面";
 elements.get("authLink").hidden = true;
 elements.get("fontScaleInput").value = "100";
@@ -113,6 +130,9 @@ const styleValues = new Map();
 let intervalSequence = 0;
 let loggedIn = false;
 let popupBlocked = false;
+let exitAdvertised = false;
+let exitFailure = false;
+const exitRequests = [];
 const openedURLs = [];
 
 const document = {
@@ -121,7 +141,9 @@ const document = {
   getElementById(id) {
     return elements.get(id) || null;
   },
-  querySelectorAll() {
+  querySelectorAll(selector) {
+    if (selector === "[data-settings-tab]") return settingsTabElements;
+    if (selector === "[data-settings-panel]") return settingsPanelElements;
     return [];
   },
   createElement() {
@@ -165,7 +187,7 @@ const windowObject = {
   }
 };
 
-async function fakeFetch(url) {
+async function fakeFetch(url, options = {}) {
   const path = String(url);
   let data = {};
   if (path.includes("api/status")) {
@@ -175,19 +197,33 @@ async function fakeFetch(url) {
           tailscale_ips: ["100.64.0.2"],
           self: { name: "fnos-test", os: "linux", ips: ["100.64.0.2"], online: true, self: true },
           devices: [], online_count: 1, total_count: 1,
-          package_version: "1.102.2-fnos.0.5", tailscale_version: "1.102.2"
+          exit_node_advertised: exitAdvertised, exit_node_enabled: exitAdvertised,
+          exit_node_state_known: true, exit_node_approval: "unknown",
+          ipv4_forwarding: exitAdvertised, ipv6_forwarding: exitAdvertised,
+          ipv6_forwarding_available: true,
+          package_version: "1.104.2-fnos.0.8.1", tailscale_version: "1.104.2"
         }
       : {
           backend_state: "NeedsLogin", connected: false, logged_in: false,
           tailscale_ips: [], devices: [], online_count: 0, total_count: 0,
-          package_version: "1.102.2-fnos.0.5", tailscale_version: "1.102.2"
+          package_version: "1.104.2-fnos.0.8.1", tailscale_version: "1.104.2"
         };
   } else if (path.includes("api/login/browser")) {
     data = { auth_url: "https://login.tailscale.com/a/mock-test" };
   } else if (path.includes("api/update")) {
-    data = { current: "1.102.2-fnos.0.5", published: false };
+    data = { current: "1.104.2-fnos.0.8.1", published: false };
   } else if (path.includes("api/latency")) {
     data = { nearest_ms: 12, preferred_derp: 1 };
+  } else if (path.includes("api/exit-node")) {
+    const input = JSON.parse(options.body);
+    exitRequests.push(input.enabled);
+    if (exitFailure) {
+      return { ok: false, status: 502, async json() {
+        return { ok: false, error: { code: "exit_node_failed", message: "无法启用主机转发，已回滚" } };
+      } };
+    }
+    exitAdvertised = input.enabled;
+    data = { enabled: exitAdvertised, warnings: [] };
   }
   return { ok: true, status: 200, async json() { return { ok: true, data }; } };
 }
@@ -199,7 +235,6 @@ const context = vm.createContext({
   fetch: fakeFetch
 });
 
-const indexSource = await readFile(new URL("../internal/manager/web/index.html", import.meta.url), "utf8");
 assert.match(indexSource, /id="fontScaleInput"[^>]+min="70"[^>]+max="160"/);
 assert.match(indexSource, /id="uiZoomInput"[^>]+min="50"[^>]+max="160"/);
 assert.match(indexSource, /id="fontScaleValue"[^>]+type="number"[^>]+min="70"[^>]+max="160"/);
@@ -212,6 +247,54 @@ vm.runInContext(source, context, { filename: "app.js" });
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 await flush();
 await flush();
+
+assert.equal(elements.get("versionValue").textContent, "v0.8.1", "overview should show the community revision prominently");
+assert.equal(elements.get("versionValue").title, "1.104.2-fnos.0.8.1", "the version tooltip should retain the complete package version");
+assert.equal(elements.get("settingsVersion").textContent, "1.104.2-fnos.0.8.1", "settings should retain the complete package version");
+
+function assertSettingsTab(name) {
+  for (const tab of settingsTabElements) {
+    const selected = tab.dataset.settingsTab === name;
+    assert.equal(tab.getAttribute("aria-selected"), String(selected), `${tab.id} selection should reflect ${name}`);
+    assert.equal(tab.tabIndex, selected ? 0 : -1, "only the selected settings tab should be in the tab order");
+    const panel = settingsPanelElements.find((item) => item.dataset.settingsPanel === tab.dataset.settingsTab);
+    assert.ok(panel, `${tab.id} must have a corresponding panel`);
+    assert.equal(tab.getAttribute("role"), "tab");
+    assert.equal(panel.getAttribute("role"), "tabpanel");
+    assert.equal(tab.getAttribute("aria-controls"), panel.id);
+    assert.equal(panel.getAttribute("aria-labelledby"), tab.id);
+    assert.equal(panel.hidden, !selected, "only the selected settings panel should be visible");
+  }
+}
+
+assert.equal(settingsTabElements.length, 4, "all four settings categories should be represented");
+assertSettingsTab("network");
+for (const name of ["appearance", "account", "about", "network"]) {
+  await settingsTabElements.find((tab) => tab.dataset.settingsTab === name).emit("click");
+  assertSettingsTab(name);
+}
+for (const [from, key, to] of [
+  ["network", "ArrowRight", "appearance"],
+  ["appearance", "ArrowLeft", "network"],
+  ["network", "ArrowLeft", "about"],
+  ["about", "ArrowRight", "network"],
+  ["network", "End", "about"],
+  ["about", "Home", "network"]
+]) {
+  let prevented = false;
+  await settingsTabElements.find((tab) => tab.dataset.settingsTab === from).emit("keydown", {
+    key, preventDefault() { prevented = true; }
+  });
+  assert.equal(prevented, true, `${key} should prevent page scrolling`);
+  assertSettingsTab(to);
+  assert.equal(document.activeElement.dataset.settingsTab, to, `${key} should move keyboard focus to the selected tab`);
+}
+await settingsTabElements[0].emit("keydown", { key: "Enter" });
+assertSettingsTab("network");
+await settingsTabElements.find((tab) => tab.dataset.settingsTab === "about").emit("click");
+await elements.get("overviewSettingsButton").emit("click");
+assertSettingsTab("network");
+assert.equal(elements.get("breadcrumbTitle").textContent, "设置", "overview settings shortcut should navigate to settings");
 
 assert.equal(elements.get("fontScaleValue").value, "100", "legacy 120% font should migrate to the new 100%");
 assert.equal(elements.get("uiZoomValue").value, "100", "legacy 80% zoom should migrate to the new 100%");
@@ -264,6 +347,31 @@ await loginPoll.callback();
 await flush();
 assert.equal(elements.get("loginDialog").open, false, "login dialog should close after status reports login success");
 assert.equal([...intervals.values()].some((timer) => timer.delay === 2000), false, "login polling should stop after success");
+
+await settingsTabElements.find((tab) => tab.dataset.settingsTab === "account").emit("click");
+await elements.get("openExitSettings").emit("click");
+assertSettingsTab("network");
+assert.equal(elements.get("breadcrumbTitle").textContent, "设置", "Exit Node shortcut should navigate to settings");
+assert.equal(document.activeElement, elements.get("exitNodeToggle"), "Exit Node shortcut should focus its switch");
+
+elements.get("exitNodeToggle").checked = true;
+await elements.get("exitNodeToggle").emit("change");
+assert.deepEqual(exitRequests, [true], "enabling must request the host operation");
+assert.equal(elements.get("exitNodeToggle").checked, true, "verified host status should keep the toggle enabled");
+assert.equal(elements.get("exitNodeToggle").disabled, false, "toggle should recover after completion");
+
+elements.get("exitNodeToggle").checked = false;
+await elements.get("exitNodeToggle").emit("change");
+assert.deepEqual(exitRequests, [true, false], "disabling must request local withdrawal");
+assert.equal(elements.get("exitNodeToggle").checked, false);
+
+exitFailure = true;
+elements.get("exitNodeToggle").checked = true;
+await elements.get("exitNodeToggle").emit("change");
+assert.equal(elements.get("exitNodeToggle").checked, false, "failed enable should reflect the rolled-back host state");
+assert.equal(elements.get("exitNodeToggle").disabled, false);
+assert.ok(elements.get("toastRegion").children.some((item) => item.textContent.includes("已回滚")), "host failure should remain visible");
+exitFailure = false;
 
 loggedIn = false;
 const statusPoll = [...intervals.values()].find((timer) => timer.delay === 10000);
