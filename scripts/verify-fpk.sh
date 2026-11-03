@@ -45,6 +45,7 @@ for required_path in \
   ui/images/icon_256.png \
   BUILD-INFO.txt \
   LICENSES/Tailscale-BSD-3-Clause.txt \
+  LICENSES/Tailscale-for-fnOS-MIT.txt \
   THIRD_PARTY_NOTICES.md; do
   printf '%s\n' "$payload_listing" | grep -Fxq "$required_path" || \
     die "missing application payload entry: $required_path"
