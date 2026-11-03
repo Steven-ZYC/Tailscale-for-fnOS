@@ -1,10 +1,12 @@
 # Tailscale for fnOS
 
+[![Latest Release](https://img.shields.io/github/v/release/Steven-ZYC/Tailscale-for-fnOS?label=Latest%20FPK)](https://github.com/Steven-ZYC/Tailscale-for-fnOS/releases/latest) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 [简体中文](README.md) | [English](README_EN.md)
 
 <img src="packaging/ICON_256.PNG" alt="Tailscale for fnOS 应用图标" width="80" />
 
-**飞牛 fnOS 原生 Tailscale 客户端：下载 FPK、手动安装，即可通过中文界面管理 Tailnet 连接，无需 Docker。**
+**飞牛 NAS（fnOS）原生 Tailscale 客户端：免 Docker，下载 FPK 后在应用中心手动安装，即可通过中文界面管理远程连接与 Tailnet 设备。**
 
 本项目将 Tailscale 官方 Linux stable 软件源提供的、未经修改的 `tailscale` 与 `tailscaled` 二进制文件封装为 fnOS FPK，并自行实现轻量 Go 管理后端和中文界面。
 
@@ -217,7 +219,7 @@ FPK、Go 管理界面、manifest 或 fnOS 生命周期脚本。请勿将其中�
 应用图标取自 [Tailscale 官方媒体资源包](https://tailscale.com/press)中的
 官方 squircle 图标。来源和所有权说明记录在 [`assets/SOURCE.md`](assets/SOURCE.md)。
 
-本仓库原创打包代码目前尚未选择许可证。在接受外部贡献前应先确定许可证。
+本项目原创的 Go 管理后端、Web UI、fnOS 集成与构建脚本采用 [MIT License](LICENSE)。MIT 仅适用于项目拥有权利的原创内容，不覆盖随包分发的 Tailscale 官方二进制或 Tailscale 名称、商标与官方图标。构建的 FPK 会分别附带项目 MIT 声明及上游 BSD-3-Clause 声明；第三方资源的权利归其各自权利人所有。
 
 ### 官方参考资料
 
