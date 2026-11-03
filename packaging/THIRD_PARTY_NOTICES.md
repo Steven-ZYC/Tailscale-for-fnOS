@@ -14,3 +14,9 @@ Upstream project: https://github.com/tailscale/tailscale
 Official packages: https://pkgs.tailscale.com/stable/
 
 License: `LICENSES/Tailscale-BSD-3-Clause.txt`
+
+The project's original Go backend, Web UI, fnOS integration and packaging
+scripts are licensed under the MIT License. The MIT notice is included in
+each generated FPK at `LICENSES/Tailscale-for-fnOS-MIT.txt`. This license
+does not grant rights to the official Tailscale icon, name or trademarks,
+which remain subject to their respective owners' rights.
