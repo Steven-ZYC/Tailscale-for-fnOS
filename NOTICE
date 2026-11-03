@@ -1,11 +1,23 @@
 Tailscale for fnOS
 Copyright 2026 Steven Zhang Yancheng
 
-This product includes original fnOS integration, Go management backend,
-web UI, packaging scripts, and documentation licensed under the
-Apache License, Version 2.0. See LICENSE.
+Maintainer: Steven Zhang Yancheng (GitHub: @Steven-ZYC)
+Maintainer profile: https://github.com/Steven-ZYC
+Project repository: https://github.com/Steven-ZYC/Tailscale-for-fnOS
 
-The official Tailscale binaries are redistributed under their upstream
-BSD-3-Clause license. The Tailscale name and official icon remain the
-property of Tailscale Inc. See packaging/THIRD_PARTY_NOTICES.md and
-assets/SOURCE.md for the corresponding third-party notices.
+The original fnOS integration, Go management backend, web UI, packaging
+scripts, and project documentation are licensed under the Apache License,
+Version 2.0. See LICENSE for the complete license text.
+
+Third-party components and brand assets:
+
+- The unmodified official Tailscale Linux binaries (`tailscale` and
+  `tailscaled`) are redistributed under their upstream BSD-3-Clause
+  license. See packaging/LICENSES/Tailscale-BSD-3-Clause.txt and
+  packaging/THIRD_PARTY_NOTICES.md.
+- The Tailscale name, trademark, and official icon remain the property of
+  Tailscale Inc. and are not licensed under this project's Apache-2.0
+  license. See assets/SOURCE.md for the official icon's provenance.
+
+This is an independently maintained community project and is not
+affiliated with or endorsed by Tailscale Inc. or the fnOS vendor.
