@@ -1,10 +1,12 @@
 # Tailscale for fnOS
 
+[![Latest Release](https://img.shields.io/github/v/release/Steven-ZYC/Tailscale-for-fnOS?label=Latest%20FPK)](https://github.com/Steven-ZYC/Tailscale-for-fnOS/releases/latest) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 [简体中文](README.md) | [English](README_EN.md)
 
 <img src="packaging/ICON_256.PNG" alt="Tailscale for fnOS application icon" width="80" />
 
-**A native Tailscale client for Feiniu fnOS: download the FPK and install it manually to manage Tailnet connections through a Chinese-language interface, without Docker.**
+**Native Tailscale for Feiniu NAS (fnOS): no Docker required. Download an FPK, install it manually in App Center, and manage remote connections and Tailnet devices through a Chinese-language interface.**
 
 This project packages the unmodified `tailscale` and `tailscaled` binaries provided by the official Tailscale Linux stable package repository into an fnOS FPK, with an independently implemented lightweight Go management backend and Chinese-language interface.
 
@@ -219,7 +221,7 @@ and is copied into each FPK's `app/LICENSES/` directory together with third-part
 The application icon is the official squircle icon from the [official Tailscale media kit](https://tailscale.com/press).
 Source and ownership details are recorded in [`assets/SOURCE.md`](assets/SOURCE.md).
 
-No license has been selected yet for this repository's original packaging code. A license should be determined before accepting external contributions.
+The project's original Go management backend, Web UI, fnOS integration, and build scripts are licensed under the [MIT License](LICENSE). This license applies only to original content for which the project has licensing rights; it does not cover redistributed official Tailscale binaries, the Tailscale name or trademarks, or the official icon. Generated FPKs include separate MIT and upstream BSD-3-Clause notices. Third-party materials remain subject to their respective owners' rights.
 
 ### Official references
 
