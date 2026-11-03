@@ -4,7 +4,7 @@
 
 <img src="packaging/ICON_256.PNG" alt="Tailscale for fnOS application icon" width="80" />
 
-**A native Tailscale client for Feiniu fnOS: download the FPK and install it manually to manage Tailnet connections through a Chinese-language interface, without Docker.**
+**A native Tailscale client for Feiniu fnOS: install an FPK without Docker or command-line setup, then manage Tailnet connections with a Chinese-language interface. Supports x86-64 and ARM64.**
 
 This project packages the unmodified `tailscale` and `tailscaled` binaries provided by the official Tailscale Linux stable package repository into an fnOS FPK, with an independently implemented lightweight Go management backend and Chinese-language interface.
 
