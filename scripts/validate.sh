@@ -14,6 +14,7 @@ validate_sha256 "$FNPACK_LINUX_AMD64_SHA256"
 validate_package_revision "$FNOS_PACKAGE_REVISION"
 
 required_files=(
+  LICENSE
   packaging/manifest.template
   packaging/config/privilege
   packaging/config/resource
