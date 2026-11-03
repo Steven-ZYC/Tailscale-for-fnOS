@@ -4,7 +4,7 @@
 
 <img src="packaging/ICON_256.PNG" alt="Tailscale for fnOS 应用图标" width="80" />
 
-**飞牛 fnOS 原生 Tailscale 客户端：下载 FPK、手动安装，即可通过中文界面管理 Tailnet 连接，无需 Docker。**
+**飞牛 fnOS 原生 Tailscale 客户端：免 Docker、免命令行，通过 FPK 手动安装并使用中文界面管理 Tailnet 连接。支持 x86-64 和 ARM64。**
 
 本项目将 Tailscale 官方 Linux stable 软件源提供的、未经修改的 `tailscale` 与 `tailscaled` 二进制文件封装为 fnOS FPK，并自行实现轻量 Go 管理后端和中文界面。
 
@@ -210,14 +210,14 @@ FPK、Go 管理界面、manifest 或 fnOS 生命周期脚本。请勿将其中�
 
 ### 许可证与品牌资源
 
-随包分发的 Tailscale 二进制采用 BSD-3-Clause 许可证。所需声明位于
+随包分发的 Tailscale 二进制采用 BSD-3-Clause 许可证。项目原创代码的 Apache-2.0 许可证与 `NOTICE` 同时包含在 FPK 应用负载中。第三方声明位于
 [`packaging/LICENSES/Tailscale-BSD-3-Clause.txt`](packaging/LICENSES/Tailscale-BSD-3-Clause.txt)，
 并会连同第三方及构建来源说明一起复制到每个 FPK 的 `app/LICENSES/` 中。
 
 应用图标取自 [Tailscale 官方媒体资源包](https://tailscale.com/press)中的
 官方 squircle 图标。来源和所有权说明记录在 [`assets/SOURCE.md`](assets/SOURCE.md)。
 
-本仓库原创打包代码目前尚未选择许可证。在接受外部贡献前应先确定许可证。
+**本项目原创的 Go 管理后端、Web 界面、fnOS 集成脚本及文档采用 [Apache License 2.0](LICENSE) 授权，另见 [`NOTICE`](NOTICE)。** 随包分发的 Tailscale 官方二进制仍遵循其 BSD-3-Clause 许可证和上游第三方声明；Tailscale 名称及官方图标不在本项目 Apache-2.0 授权范围内，相关来源详见 [`packaging/THIRD_PARTY_NOTICES.md`](packaging/THIRD_PARTY_NOTICES.md) 与 [`assets/SOURCE.md`](assets/SOURCE.md)。
 
 ### 官方参考资料
 

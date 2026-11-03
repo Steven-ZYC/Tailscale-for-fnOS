@@ -4,7 +4,7 @@
 
 <img src="packaging/ICON_256.PNG" alt="Tailscale for fnOS application icon" width="80" />
 
-**A native Tailscale client for Feiniu fnOS: download the FPK and install it manually to manage Tailnet connections through a Chinese-language interface, without Docker.**
+**A native Tailscale client for Feiniu fnOS: install an FPK without Docker or command-line setup, then manage Tailnet connections with a Chinese-language interface. Supports x86-64 and ARM64.**
 
 This project packages the unmodified `tailscale` and `tailscaled` binaries provided by the official Tailscale Linux stable package repository into an fnOS FPK, with an independently implemented lightweight Go management backend and Chinese-language interface.
 
@@ -212,14 +212,14 @@ See [`SECURITY.md`](SECURITY.md) for instructions on reporting security issues.
 
 ### Licenses and brand assets
 
-The bundled Tailscale binaries are licensed under BSD-3-Clause. The required notice is in
+The bundled Tailscale binaries are licensed under BSD-3-Clause. The Apache-2.0 license and NOTICE for the project's original components are also included in the FPK payload. The upstream Tailscale notice is in
 [`packaging/LICENSES/Tailscale-BSD-3-Clause.txt`](packaging/LICENSES/Tailscale-BSD-3-Clause.txt)
 and is copied into each FPK's `app/LICENSES/` directory together with third-party and build provenance notices.
 
 The application icon is the official squircle icon from the [official Tailscale media kit](https://tailscale.com/press).
 Source and ownership details are recorded in [`assets/SOURCE.md`](assets/SOURCE.md).
 
-No license has been selected yet for this repository's original packaging code. A license should be determined before accepting external contributions.
+The original Go management backend, web interface, fnOS integration scripts, and documentation in this project are licensed under the [Apache License 2.0](LICENSE); see also [`NOTICE`](NOTICE). The redistributed official Tailscale binaries remain subject to their upstream BSD-3-Clause license and third-party notices. The Tailscale name and official icon are not covered by this project's Apache-2.0 license; see [`packaging/THIRD_PARTY_NOTICES.md`](packaging/THIRD_PARTY_NOTICES.md) and [`assets/SOURCE.md`](assets/SOURCE.md).
 
 ### Official references
 

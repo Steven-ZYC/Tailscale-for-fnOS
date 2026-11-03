@@ -43,6 +43,8 @@ mkdir -p "${stage_dir}/app/bin"
 # fnpack only carries application payload from app/. Keep redistribution
 # notices inside that payload instead of relying on unregistered root files.
 mkdir -p "${stage_dir}/app/LICENSES"
+cp "${PROJECT_ROOT}/LICENSE" "${stage_dir}/app/LICENSES/Tailscale-for-fnOS-Apache-2.0.txt"
+cp "${PROJECT_ROOT}/NOTICE" "${stage_dir}/app/NOTICE"
 cp "${stage_dir}/LICENSES/Tailscale-BSD-3-Clause.txt" \
   "${stage_dir}/app/LICENSES/Tailscale-BSD-3-Clause.txt"
 cp "${stage_dir}/THIRD_PARTY_NOTICES.md" \
