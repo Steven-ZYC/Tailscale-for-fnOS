@@ -219,7 +219,7 @@ and is copied into each FPK's `app/LICENSES/` directory together with third-part
 The application icon is the official squircle icon from the [official Tailscale media kit](https://tailscale.com/press).
 Source and ownership details are recorded in [`assets/SOURCE.md`](assets/SOURCE.md).
 
-No license has been selected yet for this repository's original packaging code. A license should be determined before accepting external contributions.
+The original Go management backend, web interface, fnOS integration scripts, and documentation in this project are licensed under the [MIT License](LICENSE). The redistributed official Tailscale binaries remain subject to their upstream BSD-3-Clause license and third-party notices. The Tailscale name and official icon are not covered by this project's MIT license; see [`packaging/THIRD_PARTY_NOTICES.md`](packaging/THIRD_PARTY_NOTICES.md) and [`assets/SOURCE.md`](assets/SOURCE.md).
 
 ### Official references
 
