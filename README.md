@@ -210,14 +210,14 @@ FPK、Go 管理界面、manifest 或 fnOS 生命周期脚本。请勿将其中�
 
 ### 许可证与品牌资源
 
-随包分发的 Tailscale 二进制采用 BSD-3-Clause 许可证。所需声明位于
+随包分发的 Tailscale 二进制采用 BSD-3-Clause 许可证。项目原创代码的 Apache-2.0 许可证与 `NOTICE` 同时包含在 FPK 应用负载中。第三方声明位于
 [`packaging/LICENSES/Tailscale-BSD-3-Clause.txt`](packaging/LICENSES/Tailscale-BSD-3-Clause.txt)，
 并会连同第三方及构建来源说明一起复制到每个 FPK 的 `app/LICENSES/` 中。
 
 应用图标取自 [Tailscale 官方媒体资源包](https://tailscale.com/press)中的
 官方 squircle 图标。来源和所有权说明记录在 [`assets/SOURCE.md`](assets/SOURCE.md)。
 
-**本项目原创的 Go 管理后端、Web 界面、fnOS 集成脚本及文档采用 [MIT License](LICENSE) 授权。** 随包分发的 Tailscale 官方二进制仍遵循其 BSD-3-Clause 许可证和上游第三方声明；Tailscale 名称及官方图标不在本项目 MIT 授权范围内，相关来源详见 [`packaging/THIRD_PARTY_NOTICES.md`](packaging/THIRD_PARTY_NOTICES.md) 与 [`assets/SOURCE.md`](assets/SOURCE.md)。
+**本项目原创的 Go 管理后端、Web 界面、fnOS 集成脚本及文档采用 [Apache License 2.0](LICENSE) 授权，另见 [`NOTICE`](NOTICE)。** 随包分发的 Tailscale 官方二进制仍遵循其 BSD-3-Clause 许可证和上游第三方声明；Tailscale 名称及官方图标不在本项目 Apache-2.0 授权范围内，相关来源详见 [`packaging/THIRD_PARTY_NOTICES.md`](packaging/THIRD_PARTY_NOTICES.md) 与 [`assets/SOURCE.md`](assets/SOURCE.md)。
 
 ### 官方参考资料
 
