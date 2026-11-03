@@ -45,6 +45,8 @@ mkdir -p "${stage_dir}/app/bin"
 mkdir -p "${stage_dir}/app/LICENSES"
 cp "${stage_dir}/LICENSES/Tailscale-BSD-3-Clause.txt" \
   "${stage_dir}/app/LICENSES/Tailscale-BSD-3-Clause.txt"
+cp "${PROJECT_ROOT}/LICENSE" \
+  "${stage_dir}/app/LICENSES/Tailscale-for-fnOS-MIT.txt"
 cp "${stage_dir}/THIRD_PARTY_NOTICES.md" \
   "${stage_dir}/app/THIRD_PARTY_NOTICES.md"
 
