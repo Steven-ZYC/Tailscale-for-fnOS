@@ -10,6 +10,8 @@
 
 **[⬇️ 下载最新 FPK](https://github.com/Steven-ZYC/Tailscale-for-fnOS/releases/latest)** · **[📖 快速安装](#快速安装)** · **[✨ 功能介绍](#主要功能)** · **[🐛 反馈问题](https://github.com/Steven-ZYC/Tailscale-for-fnOS/issues)**
 
+**维护者：** [Steven Zhang Yancheng（@Steven-ZYC）](https://github.com/Steven-ZYC) · **许可证：** [Apache-2.0](LICENSE) · **[版权声明](NOTICE)**
+
 > [!IMPORTANT]
 >  - 请确保系统**没有另一套 Tailscale 正在运行**。若存在其他 `tailscaled` 进程或 `tailscale0` 接口，本应用会为避免冲突而拒绝启动。
 >  - 当前公开版本仍属于测试构建。
@@ -208,16 +210,15 @@ FPK、Go 管理界面、manifest 或 fnOS 生命周期脚本。请勿将其中�
 
 安全问题报告方式请参阅 [`SECURITY.md`](SECURITY.md)。
 
-### 许可证与品牌资源
+### 许可证、版权与第三方资源
 
-随包分发的 Tailscale 二进制采用 BSD-3-Clause 许可证。项目原创代码的 Apache-2.0 许可证与 `NOTICE` 同时包含在 FPK 应用负载中。第三方声明位于
-[`packaging/LICENSES/Tailscale-BSD-3-Clause.txt`](packaging/LICENSES/Tailscale-BSD-3-Clause.txt)，
-并会连同第三方及构建来源说明一起复制到每个 FPK 的 `app/LICENSES/` 中。
+**Copyright © 2026 Steven Zhang Yancheng（[@Steven-ZYC](https://github.com/Steven-ZYC)）。**
 
-应用图标取自 [Tailscale 官方媒体资源包](https://tailscale.com/press)中的
-官方 squircle 图标。来源和所有权说明记录在 [`assets/SOURCE.md`](assets/SOURCE.md)。
+- **原创代码与文档：** Go 管理后端、Web 界面、fnOS 集成与打包脚本及项目文档采用 [Apache License 2.0](LICENSE) 授权；作者和版权说明见 [`NOTICE`](NOTICE)。
+- **Tailscale 官方二进制：** 随 FPK 分发的未经修改的 `tailscale` 与 `tailscaled` 遵循上游 BSD-3-Clause 许可证；详见 [`packaging/LICENSES/Tailscale-BSD-3-Clause.txt`](packaging/LICENSES/Tailscale-BSD-3-Clause.txt) 和 [`packaging/THIRD_PARTY_NOTICES.md`](packaging/THIRD_PARTY_NOTICES.md)。
+- **商标与图标：** Tailscale 名称、商标及官方图标属于 Tailscale Inc.，不在本项目 Apache-2.0 授权范围内；图标来源见 [`assets/SOURCE.md`](assets/SOURCE.md)。
 
-**本项目原创的 Go 管理后端、Web 界面、fnOS 集成脚本及文档采用 [Apache License 2.0](LICENSE) 授权，另见 [`NOTICE`](NOTICE)。** 随包分发的 Tailscale 官方二进制仍遵循其 BSD-3-Clause 许可证和上游第三方声明；Tailscale 名称及官方图标不在本项目 Apache-2.0 授权范围内，相关来源详见 [`packaging/THIRD_PARTY_NOTICES.md`](packaging/THIRD_PARTY_NOTICES.md) 与 [`assets/SOURCE.md`](assets/SOURCE.md)。
+发布的 FPK 内包含本项目 Apache-2.0 许可与 NOTICE，以及 Tailscale 上游许可证和第三方声明。本项目为独立社区项目，不代表 Tailscale Inc. 或飞牛 fnOS 官方认证或背书。
 
 ### 官方参考资料
 

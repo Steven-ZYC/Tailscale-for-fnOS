@@ -10,6 +10,8 @@ This project packages the unmodified `tailscale` and `tailscaled` binaries provi
 
 **[⬇️ Download the latest FPK](https://github.com/Steven-ZYC/Tailscale-for-fnOS/releases/latest)** · **[📖 Quick installation](#quick-installation)** · **[✨ Features](#main-features)** · **[🐛 Report an issue](https://github.com/Steven-ZYC/Tailscale-for-fnOS/issues)**
 
+**Maintainer:** [Steven Zhang Yancheng (@Steven-ZYC)](https://github.com/Steven-ZYC) · **License:** [Apache-2.0](LICENSE) · **[Copyright notice](NOTICE)**
+
 > [!IMPORTANT]
 >  - Make sure **no other Tailscale installation is running** on the system. If another `tailscaled` process or a `tailscale0` interface exists, this application will refuse to start to avoid conflicts.
 >  - The current public version is still a test build.
@@ -210,16 +212,15 @@ This application is networking software that runs with elevated privileges:
 
 See [`SECURITY.md`](SECURITY.md) for instructions on reporting security issues.
 
-### Licenses and brand assets
+### License, copyright, and third-party assets
 
-The bundled Tailscale binaries are licensed under BSD-3-Clause. The Apache-2.0 license and NOTICE for the project's original components are also included in the FPK payload. The upstream Tailscale notice is in
-[`packaging/LICENSES/Tailscale-BSD-3-Clause.txt`](packaging/LICENSES/Tailscale-BSD-3-Clause.txt)
-and is copied into each FPK's `app/LICENSES/` directory together with third-party and build provenance notices.
+**Copyright © 2026 Steven Zhang Yancheng ([@Steven-ZYC](https://github.com/Steven-ZYC)).**
 
-The application icon is the official squircle icon from the [official Tailscale media kit](https://tailscale.com/press).
-Source and ownership details are recorded in [`assets/SOURCE.md`](assets/SOURCE.md).
+- **Original code and documentation:** The Go management backend, web UI, fnOS integration and packaging scripts, and project documentation are licensed under the [Apache License 2.0](LICENSE). See [`NOTICE`](NOTICE) for attribution.
+- **Official Tailscale binaries:** The redistributed, unmodified `tailscale` and `tailscaled` binaries retain their upstream BSD-3-Clause license; see [`packaging/LICENSES/Tailscale-BSD-3-Clause.txt`](packaging/LICENSES/Tailscale-BSD-3-Clause.txt) and [`packaging/THIRD_PARTY_NOTICES.md`](packaging/THIRD_PARTY_NOTICES.md).
+- **Trademarks and icon:** The Tailscale name, trademark, and official icon belong to Tailscale Inc. and are not covered by this project's Apache-2.0 license. See [`assets/SOURCE.md`](assets/SOURCE.md) for provenance.
 
-The original Go management backend, web interface, fnOS integration scripts, and documentation in this project are licensed under the [Apache License 2.0](LICENSE); see also [`NOTICE`](NOTICE). The redistributed official Tailscale binaries remain subject to their upstream BSD-3-Clause license and third-party notices. The Tailscale name and official icon are not covered by this project's Apache-2.0 license; see [`packaging/THIRD_PARTY_NOTICES.md`](packaging/THIRD_PARTY_NOTICES.md) and [`assets/SOURCE.md`](assets/SOURCE.md).
+Built FPKs include this project's Apache-2.0 license and NOTICE, plus the upstream Tailscale license and third-party notices. This is an independently maintained community project, not endorsed by Tailscale Inc. or the fnOS vendor.
 
 ### Official references
 
